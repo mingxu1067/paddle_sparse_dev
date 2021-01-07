@@ -1,4 +1,5 @@
 #include "paddle/fluid/operators/mul_sparse_op.h"
+#include "paddle/fluid/operators/mul_op.h"
 
 namespace paddle {
 namespace operators {
@@ -198,3 +199,6 @@ namespace ops = paddle::operators;
 REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType,
                   ops::MulSparseOpGradMaker<paddle::framework::OpDesc>,
                   ops::MulSparseOpGradMaker<paddle::imperative::OpBase>);
+
+REGISTER_OP_CPU_KERNEL(
+    mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>);
