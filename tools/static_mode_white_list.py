@@ -333,6 +333,7 @@ STATIC_MODE_TESTING_LIST = [
     'test_monitor',
     'test_mse_loss',
     'test_mul_op',
+    'test_mul_sparse_op',
     'test_multiclass_nms_op',
     'test_multihead_attention',
     'test_multiplex_op',
