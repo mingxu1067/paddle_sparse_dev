@@ -29,7 +29,6 @@ void CUDAAllocator::FreeImpl(Allocation* allocation) {
       BOOST_GET_CONST(platform::CUDAPlace, allocation->place()), place_,
       platform::errors::PermissionDenied(
           "GPU memory is freed in incorrect device. This may be a bug"));
-  VLOG(0) << "~~> Free GPU Memory: " << allocation->size();
   platform::RecordedCudaFree(allocation->ptr(), allocation->size(),
                              place_.device);
   delete allocation;
@@ -37,7 +36,6 @@ void CUDAAllocator::FreeImpl(Allocation* allocation) {
 
 Allocation* CUDAAllocator::AllocateImpl(size_t size) {
   std::call_once(once_flag_, [this] { platform::SetDeviceId(place_.device); });
-  VLOG(0) << "~~> Alloc GPU Memory: " << size;
   void* ptr;
   auto result = platform::RecordedCudaMalloc(&ptr, size, place_.device);
   if (LIKELY(result == cudaSuccess)) {

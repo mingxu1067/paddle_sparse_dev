@@ -23,7 +23,6 @@ namespace allocation {
 bool CPUAllocator::IsAllocThreadSafe() const { return true; }
 
 void CPUAllocator::FreeImpl(Allocation *allocation) {
-  VLOG(0) << "~~> Free CPU Memory: " << allocation->size();
   void *p = allocation->ptr();
 #ifdef _WIN32
   _aligned_free(p);
@@ -34,7 +33,6 @@ void CPUAllocator::FreeImpl(Allocation *allocation) {
 }
 
 Allocation *CPUAllocator::AllocateImpl(size_t size) {
-  VLOG(0) << "~~> Alloc CPU Memory: " << size;
   void *p;
 #ifdef _WIN32
   p = _aligned_malloc(size, kAlignment);
