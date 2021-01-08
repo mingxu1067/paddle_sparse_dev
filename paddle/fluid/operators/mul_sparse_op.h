@@ -83,11 +83,14 @@ class MulSparseKernel : public framework::OpKernel<T> {
 
     // TODO: Do only once ---------------------------------------------------------------
     const T* x_data = x_matrix.data<T>();
-    T *dA_pruned, *dA_compressed;
+    __half *dA_pruned, *dA_compressed;
+    /*
+    VLOG(0) << "X: " << x_matrix << "\n";
+    VLOG(0) << "Y: " << y_matrix << "\n";
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_pruned, (x_matrix.dims()[0]*x_matrix.dims()[1])) );
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMAPrune(
-                                            &cusparselt_handle, &matmul, x_data, dA_pruned,
+                                            &cusparselt_handle, &matmul, (const __half*)x_data, dA_pruned,
                                             CUSPARSELT_PRUNE_SPMMA_TILE, stream));
     int is_valid;
     PADDLE_ENFORCE_CUDA_SUCCESS(
@@ -98,6 +101,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
         VLOG(0) << "!!!! The matrix has been pruned in a wrong way. " <<
                     "cusparseLtMatmul will not provided correct results\n";
     }
+    */
 
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMACompressedSize(
@@ -105,7 +109,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_compressed, compressed_size));
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMACompress(
-                                            &cusparselt_handle, &plan, dA_pruned,dA_compressed, stream));
+                                            &cusparselt_handle, &plan, x_data, dA_compressed, stream));
     // --------------------------------------------------------------------------
 
     void*         d_workspace = nullptr;
