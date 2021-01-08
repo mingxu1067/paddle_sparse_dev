@@ -196,9 +196,8 @@ class MulSparseOpInferVarType : public framework::PassInDtypeAndVarTypeToOutput 
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType,
-                  ops::MulSparseOpGradMaker<paddle::framework::OpDesc>,
-                  ops::MulSparseOpGradMaker<paddle::imperative::OpBase>);
+REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType);
 
 REGISTER_OP_CPU_KERNEL(
-    mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>);
+    mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>,
+    ops::MulKernel<paddle::platform::CPUDeviceContext, double>);

@@ -24,8 +24,7 @@ from op_test import OpTest
 import paddle.fluid as fluid
 from paddle.fluid import Program, program_guard
 
-
-class TestMulOp(OpTest):
+class TestMulSparseOp(OpTest):
     def setUp(self):
         self.op_type = "mul_sparse"
         self.dtype = np.float16

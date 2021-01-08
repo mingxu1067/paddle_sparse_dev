@@ -18,4 +18,6 @@ limitations under the License. */
 
 namespace ops = paddle::operators;
 namespace plat = paddle::platform;
-REGISTER_OP_CUDA_KERNEL(mul_sparse, ops::MulSparseKernel<plat::CUDADeviceContext, plat::float16>);
+REGISTER_OP_CUDA_KERNEL(mul_sparse, ops::MulKernel<plat::CUDADeviceContext, float>,
+                        ops::MulKernel<plat::CUDADeviceContext, double>,
+                        ops::MulSparseKernel<plat::CUDADeviceContext, plat::float16>);
