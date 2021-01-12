@@ -410,8 +410,8 @@ def fc_sparse(input,
                 outputs={"Out": tmp},
                 attrs={"x_num_col_dims": 1,
                     "y_num_col_dims": num_flatten_dims})
-            tmp = transpose(tmp, perm=[1, 0])
-            mul_results.append(tmp)
+            tmp_transposed = transpose(tmp, perm=[1, 0])
+            mul_results.append(tmp_transposed)
 
         if len(mul_results) == 1:
             pre_bias = mul_results[0]
