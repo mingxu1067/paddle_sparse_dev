@@ -83,7 +83,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
 
     // TODO: Do only once ---------------------------------------------------------------
     const T* x_data = x_matrix.data<T>();
-    __half *dA_pruned, *dA_compressed;
+    __half *dA_compressed; // *dA_pruned,
     /*
     VLOG(0) << "X: " << x_matrix << "\n";
     VLOG(0) << "Y: " << y_matrix << "\n";
@@ -126,7 +126,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                             num_streams));
 
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
-    PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_pruned));
+    // PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_pruned));
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
 
     if (z_dim.size() != 2) {
