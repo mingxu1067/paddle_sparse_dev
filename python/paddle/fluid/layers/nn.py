@@ -42,6 +42,7 @@ from paddle.utils import deprecated
 
 __all__ = [
     'fc',
+    'fc_sparse',
     'embedding',
     'linear_chain_crf',
     'crf_decoding',
