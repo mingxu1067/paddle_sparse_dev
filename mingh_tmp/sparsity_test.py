@@ -11,9 +11,9 @@ def main():
 
     with fluid.program_guard(train_program, startup_prog):
         input_data = fluid.layers.data(
-            name='test_data', shape=[None, 8], dtype='float16')
-        fc = fluid.layers.fc(input=input_data, size=64, act=None)
-        fc_sparse = fluid.layers.fc_sparse(input=input_data, size=64, act=None)
+            name='test_data', shape=[None, 32], dtype='float16')
+        fc = fluid.layers.fc(input=input_data, size=8, act=None)
+        fc_sparse = fluid.layers.fc_sparse(input=input_data, size=8, act=None)
 
     for param in train_program.global_block().all_parameters():
         print(param.name)
@@ -29,20 +29,27 @@ def main():
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
-    fcw_array = np.array(fcw_param).flatten()
-    pruned_w = sparsity.prune_matrix(fcw_array).reshape((8,64))
+    fcw_array = np.transpose(np.array(fcw_param)).flatten()
+    pruned_w = np.transpose(sparsity.prune_matrix(fcw_array).reshape((8,32)))
 
     fcw_param.set(pruned_w, place)
     fcsw_param.set(pruned_w, place)
 
-    data = np.random.randint(9, size=(32, 8))
+    fcb = fluid.global_scope().find_var('fc_0.b_0')
+    fcsb = fluid.global_scope().find_var('fc_sparse_0.b_0')
+
+    fcb_param = fcb.get_tensor()
+    fcsb_param = fcsb.get_tensor()
+    fcb_array = np.array(fcb_param)
+    fcsb_param.set(fcb_array, place)
+
+    data = np.random.randint(9, size=(8, 32))
     fc_result, fc_sparse_result = exe.run(
         train_program, feed=feeder.feed([(data,)]), fetch_list=[fc, fc_sparse])
     print(fc_result.shape, fc_sparse_result.shape)
 
-
-    for i in range(32):
-        for j in range(64):
+    for i in range(8):
+        for j in range(8):
             if fc_result[i][j] != fc_sparse_result[i][j]:
                 print(i, j, "::", fc_result[i][j], "-" ,fc_sparse_result[i][j])
 

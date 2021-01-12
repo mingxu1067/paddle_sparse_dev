@@ -404,7 +404,7 @@ def fc_sparse(input,
             w_transposed = transpose(w, perm=[1, 0])
 
             helper.append_op(
-                type="mul",
+                type="mul_sparse",
                 inputs={"X": w_transposed,
                         "Y": input_transposed},
                 outputs={"Out": tmp},
