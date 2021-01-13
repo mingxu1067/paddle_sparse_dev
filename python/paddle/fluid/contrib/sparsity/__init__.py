@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from . import sparsity
-from .sparsity import *
+from . import utils
+from .utils import *
 
-__all__ = sparsity.__all__
+__all__ = utils.__all__
