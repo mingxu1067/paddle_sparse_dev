@@ -29,8 +29,12 @@ def main():
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
-    fcw_array = np.transpose(np.array(fcw_param)).flatten()
-    pruned_w = np.transpose(sparsity.prune_matrix(fcw_array).reshape((8,32)))
+    # fcw_array = np.transpose(np.array(fcw_param)).flatten()
+    # pruned_w = np.transpose(sparsity.prune_matrix(fcw_array).reshape((8,32)))
+    fcw_array = np.array(fcw_param)
+    sparse_mask = sparsity.create_mask(fcw_array)
+    pruned_w = np.multiply(fcw_array, sparse_mask)
+    assert sparsity.check_mask_2d(pruned_w, m=4, n=2), "Pruning FC weight matrix failure!!!"
 
     fcw_param.set(pruned_w, place)
     fcsw_param.set(pruned_w, place)
