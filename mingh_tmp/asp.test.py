@@ -1,6 +1,6 @@
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid.contrib import sparsity
+from paddle.fluid.contrib.sparsity import ASPHelper
 import numpy as np
 
 paddle.enable_static()

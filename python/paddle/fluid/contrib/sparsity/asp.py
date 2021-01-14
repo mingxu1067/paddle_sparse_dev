@@ -56,7 +56,7 @@ class ASPHelper(object):
     def insert_grads_mask(cls, main_program, start_program, optimizer_type, param_grads):
         block = main_program.global_block()
         ops = main_program.global_block().ops
-        for idx in len(ops):
+        for idx in range(len(ops)):
             if ops[idx].type == optimizer_type:
                 for param_grad in param_grads:
                     if param_grad[0].name in cls.__mask_vars:
@@ -67,6 +67,5 @@ class ASPHelper(object):
                                     'Y': cls.__mask_vars[param_grad[0].name]},
                             outputs={'Out': param_grad[1]},
                             attrs={'axis': -1,
-                                    'use_mkldnn': False},
-                            stop_gradient=True)
+                                    'use_mkldnn': False})
                 break
