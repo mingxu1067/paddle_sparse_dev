@@ -25,6 +25,23 @@ class ASPHelper(object):
         return param_name + ASPHelper.MASKE_APPENDDED_NAME
 
     @classmethod
+    def minimize(cls, loss, optimizer, place, main_program, start_program):
+        optimizer_ops, params_and_grads = optimizer.minimize(loss)
+        cls.create_mask_variables(main_program, start_program, params_and_grads)
+        cls.insert_grads_mask_ops(main_program, start_program, optimizer.type, params_and_grads)
+        return optimizer_ops, params_and_grads
+
+    @classmethod
+    def create_mask_variables(cls, main_program, start_program, params_and_grads):
+        with program_guard(main_program, start_program):
+            for param_and_grad in params_and_grads:
+                if ASPHelper.is_supported_layer(param_and_grad[0].name):
+                    mask_param = layers.create_parameter(
+                                 name=param_and_grad[0].name + ASPHelper.MASKE_APPENDDED_NAME,
+                                 shape=param_and_grad[0].shape, dtype=param_and_grad[0].dtype)
+                    cls.__mask_vars[param_and_grad[0].name] = mask_param
+
+    @classmethod
     def initialize_asp_training(cls, main_program, start_program, exe):
         exe.run(start_program)
         with program_guard(main_program, start_program):
@@ -37,23 +54,24 @@ class ASPHelper(object):
         exe.run(start_program)
 
     @classmethod
-    def prune_model(cls, main_program, start_program, place):
+    def prune_model(cls, main_program, start_program, place, func_name="get_mask_2d_greedy"):
         for param in main_program.global_block().all_parameters():
             if ASPHelper.is_supported_layer(param.name) and \
                ASPHelper.MASKE_APPENDDED_NAME not in param.name:
                 weight_param = global_scope().find_var(param.name).get_tensor()
                 weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
                 weight_tensor = np.array(weight_param)
-                weight_sparse_mask = sparsity.create_mask(weight_tensor)
+                weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
                 weight_pruned_tensor = np.multiply(weight_tensor, weight_sparse_mask)
                 weight_param.set(weight_pruned_tensor, place)
                 weight_mask_param.set(weight_sparse_mask, place)
                 assert sparsity.check_mask_2d(weight_pruned_tensor, m=4, n=2), \
                         "Pruning {} weight matrix failure!!!".format(param.name)
                 cls.__masks[param.name] = weight_sparse_mask
+        return cls.__masks.copy()
 
     @classmethod
-    def insert_grads_mask(cls, main_program, start_program, optimizer_type, param_grads):
+    def insert_grads_mask_ops(cls, main_program, start_program, optimizer_type, param_grads):
         block = main_program.global_block()
         ops = main_program.global_block().ops
         for idx in range(len(ops)):
@@ -69,3 +87,5 @@ class ASPHelper(object):
                             attrs={'axis': -1,
                                     'use_mkldnn': False})
                 break
+
+

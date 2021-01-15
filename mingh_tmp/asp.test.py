@@ -24,11 +24,12 @@ def main():
     with fluid.program_guard(train_program, startup_prog):
         sgd_input_data, sgd_loss = network()
         sgd_optimizer = fluid.optimizer.SGD(learning_rate=0.1)
-        _, param_grads = sgd_optimizer.minimize(sgd_loss)
+        # _, param_grads = sgd_optimizer.minimize(sgd_loss)
+        ASPHelper.minimize(sgd_loss, sgd_optimizer, place, train_program, startup_prog)
 
-    ASPHelper.initialize_asp_training(train_program, startup_prog, exe)
-    ASPHelper.insert_grads_mask(train_program, startup_prog,
-                                sgd_optimizer.type, param_grads)
+    # ASPHelper.initialize_asp_training(train_program, startup_prog, exe)
+    # ASPHelper.insert_grads_mask_ops(train_program, startup_prog,
+    #                             sgd_optimizer.type, param_grads)
     ASPHelper.prune_model(train_program, startup_prog, place)
 
     sgd_feeder = fluid.DataFeeder(place=place, feed_list=[sgd_input_data])
