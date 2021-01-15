@@ -30,6 +30,7 @@ def main():
     # ASPHelper.initialize_asp_training(train_program, startup_prog, exe)
     # ASPHelper.insert_grads_mask_ops(train_program, startup_prog,
     #                             sgd_optimizer.type, param_grads)
+    exe.run(start_program)
     ASPHelper.prune_model(train_program, startup_prog, place)
 
     sgd_feeder = fluid.DataFeeder(place=place, feed_list=[sgd_input_data])
