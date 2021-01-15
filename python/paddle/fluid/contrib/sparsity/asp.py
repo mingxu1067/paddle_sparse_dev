@@ -1,5 +1,6 @@
 import numpy as np
 from paddle.fluid import framework, global_scope, program_guard, layers
+from paddle.fluid.initializer import ConstantInitializer
 from paddle.fluid.contrib import sparsity
 
 __all__ = ['ASPHelper']
@@ -38,18 +39,19 @@ class ASPHelper(object):
                 if ASPHelper.is_supported_layer(param_and_grad[0].name):
                     mask_param = layers.create_parameter(
                                  name=param_and_grad[0].name + ASPHelper.MASKE_APPENDDED_NAME,
-                                 shape=param_and_grad[0].shape, dtype=param_and_grad[0].dtype)
+                                 shape=param_and_grad[0].shape, dtype=param_and_grad[0].dtype,
+                                 default_initializer=ConstantInitializer(value=1.0))
                     cls.__mask_vars[param_and_grad[0].name] = mask_param
 
     @classmethod
     def initialize_asp_training(cls, main_program, start_program, exe):
-        exe.run(start_program)
         with program_guard(main_program, start_program):
             for param in main_program.all_parameters():
                 if ASPHelper.is_supported_layer(param.name):
                     mask_param = layers.create_parameter(
                                  name=param.name + ASPHelper.MASKE_APPENDDED_NAME,
-                                 shape=param.shape, dtype=param.dtype)
+                                 shape=param.shape, dtype=param.dtype,
+                                 default_initializer=ConstantInitializer(value=1.0))
                     cls.__mask_vars[param.name] = mask_param
         exe.run(start_program)
 
