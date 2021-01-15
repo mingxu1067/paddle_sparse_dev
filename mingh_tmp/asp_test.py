@@ -1,6 +1,6 @@
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid.contrib.sparsity import ASPHelper
+from paddle.fluid.contrib.sparsity import ASPHelper, check_mask_2d
 import numpy as np
 
 paddle.enable_static()
@@ -27,25 +27,26 @@ def main():
         # _, param_grads = sgd_optimizer.minimize(sgd_loss)
         ASPHelper.minimize(sgd_loss, sgd_optimizer, place, train_program, startup_prog)
 
+    exe.run(startup_prog)
     # ASPHelper.initialize_asp_training(train_program, startup_prog, exe)
     # ASPHelper.insert_grads_mask_ops(train_program, startup_prog,
     #                             sgd_optimizer.type, param_grads)
-    exe.run(start_program)
     ASPHelper.prune_model(train_program, startup_prog, place)
 
     sgd_feeder = fluid.DataFeeder(place=place, feed_list=[sgd_input_data])
 
-    for param in train_program.global_block().all_parameters():
-        print(param.name, fluid.global_scope().find_var(param.name).get_tensor())
-        input()
-
-    for i in range(5):
+    for _ in range(5):
         data = np.random.random_sample((8, 32))
         exe.run(train_program, feed=sgd_feeder.feed([(data,)]))
 
     for param in train_program.global_block().all_parameters():
-        print(param.name, fluid.global_scope().find_var(param.name).get_tensor())
-        input()
+         if ASPHelper.is_supported_layer(param.name):
+            mat = np.array(fluid.global_scope().find_var(param.name).get_tensor())
+            valid = check_mask_2d(mat, 4, 2)
+            if valid:
+                print(param.name, "Sparsity Validation:", valid)
+            else:
+                print("!!!!!!!!!!", param.name, "Sparsity Validation:", valid)
 
 if __name__ == "__main__":
     main()
