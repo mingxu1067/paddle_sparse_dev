@@ -51,29 +51,34 @@ class MulSparseOp : public framework::OperatorWithKernel {
     auto x_mat_dims = framework::flatten_to_2d(x_dims, x_num_col_dims);
     auto y_mat_dims = framework::flatten_to_2d(y_dims, y_num_col_dims);
 
-    PADDLE_ENFORCE_EQ(
-        x_mat_dims[1], y_mat_dims[0],
-        platform::errors::InvalidArgument(
-            "After flatten the input tensor X and Y to 2-D dimensions matrix "
-            "X1 and Y1, the matrix X1's width must be equal with matrix Y1's "
-            "height. But received X's shape = [%s], X1's shape = [%s], X1's "
-            "width = %s; Y's shape = [%s], Y1's shape = [%s], Y1's height = "
-            "%s.",
-            x_dims, x_mat_dims, x_mat_dims[1], y_dims, y_mat_dims,
-            y_mat_dims[0]));
-    std::vector<int64_t> output_dims;
-    output_dims.reserve(
-        static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
+    std::vector<int64_t> output_shape_vec = ctx->Attrs().Get<std::vector<int64_t>>("output_shape");
+    if (output_shape_vec.size() > 0) {
+        ctx->SetOutputDim("Out", framework::make_ddim(output_shape_vec));
+    } else {
+      PADDLE_ENFORCE_EQ(
+          x_mat_dims[1], y_mat_dims[0],
+          platform::errors::InvalidArgument(
+              "After flatten the input tensor X and Y to 2-D dimensions matrix "
+              "X1 and Y1, the matrix X1's width must be equal with matrix Y1's "
+              "height. But received X's shape = [%s], X1's shape = [%s], X1's "
+              "width = %s; Y's shape = [%s], Y1's shape = [%s], Y1's height = "
+              "%s.",
+              x_dims, x_mat_dims, x_mat_dims[1], y_dims, y_mat_dims,
+              y_mat_dims[0]));
+      std::vector<int64_t> output_dims;
+      output_dims.reserve(
+          static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
 
-    for (int i = 0; i < x_num_col_dims; ++i) {
-      output_dims.push_back(x_dims[i]);
+      for (int i = 0; i < x_num_col_dims; ++i) {
+        output_dims.push_back(x_dims[i]);
+      }
+
+      for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
+        output_dims.push_back(y_dims[i]);
+      }
+
+      ctx->SetOutputDim("Out", framework::make_ddim(output_dims));
     }
-
-    for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
-      output_dims.push_back(y_dims[i]);
-    }
-
-    ctx->SetOutputDim("Out", framework::make_ddim(output_dims));
     ctx->ShareLoD("X", /*->*/ "Out");
   }
 
