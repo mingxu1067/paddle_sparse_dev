@@ -25,6 +25,14 @@ class ASPHelper(object):
     def get_mask_name(param_name):
         return param_name + ASPHelper.MASKE_APPENDDED_NAME
 
+    @staticmethod
+    def get_vars(main_program):
+        var_list = []
+        for param in main_program.global_block().all_parameters():
+            if ASPHelper.MASKE_APPENDDED_NAME not in param.name:
+                var_list.append(param)
+        return var_list
+
     @classmethod
     def minimize(cls, loss, optimizer, place, main_program, start_program):
         optimizer_ops, params_and_grads = optimizer.minimize(loss)
