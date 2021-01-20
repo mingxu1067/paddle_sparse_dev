@@ -4,10 +4,10 @@ from paddle.fluid.contrib.sparsity import ASPHelper, check_mask_2d
 import numpy as np
 
 def build_model():
-    img = fluid.data(name='img', shape=[None, 1, 28, 28], dtype='float32')
+    img = fluid.data(name='img', shape=[None, 1, 28, 28], dtype='float16')
     label = fluid.data(name='label', shape=[None, 1], dtype='int64')
     hidden = fluid.layers.fc(input=img, size=160, act='relu')
-    hidden = fluid.layers.fc(input=hidden, size=160, act='relu')
+    hidden = fluid.layers.fc_sparse(input=hidden, size=160, act='relu')
     prediction = fluid.layers.fc(input=hidden, size=10, act='softmax')
     return img, label, prediction
 

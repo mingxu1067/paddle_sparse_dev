@@ -290,38 +290,29 @@ class MulSparseGradOp : public framework::OperatorWithKernel {
   }
 };
 
-template <typename T>
-class MulSparseOpGradMaker : public framework::SingleGradOpMaker<T> {
- public:
-  using framework::SingleGradOpMaker<T>::SingleGradOpMaker;
-
- protected:
-  void Apply(GradOpPtr<T> retv) const override {
-    retv->SetType("mul_grad");
-    retv->SetInput("X", this->Input("X"));
-    retv->SetInput("Y", this->Input("Y"));
-    retv->SetInput(framework::GradVarName("Out"), this->OutputGrad("Out"));
-    retv->SetOutput(framework::GradVarName("X"), this->InputGrad("X"));
-    retv->SetOutput(framework::GradVarName("Y"), this->InputGrad("Y"));
-    retv->SetAttrMap(this->Attrs());
-  }
-};
-
-class MulSparseOpInferVarType : public framework::PassInDtypeAndVarTypeToOutput {
- protected:
-  std::unordered_map<std::string, std::string>& GetInputOutputWithSameType()
-      const override {
-    static std::unordered_map<std::string, std::string> m{{"X", /*->*/ "Out"}};
-    return m;
-  }
-};
-
 }  // namespace operators
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType);
+REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType,
+                  ops::MulOpGradMaker<paddle::framework::OpDesc>,
+                  ops::MulOpGradMaker<paddle::imperative::OpBase>);
+
+REGISTER_OPERATOR(mul_sparse_grad, ops::MulGradOp,
+                  ops::MulDoubleGradMaker<paddle::framework::OpDesc>,
+                  ops::MulDoubleGradMaker<paddle::imperative::OpBase>);
+
+REGISTER_OPERATOR(mul_sparse_grad_grad, ops::MulDoubleGradOp);
 
 REGISTER_OP_CPU_KERNEL(
     mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>,
     ops::MulKernel<paddle::platform::CPUDeviceContext, double>);
+
+REGISTER_OP_CPU_KERNEL(
+    mul_sparse_grad, ops::MulGradKernel<paddle::platform::CPUDeviceContext, float>,
+    ops::MulGradKernel<paddle::platform::CPUDeviceContext, double>);
+
+REGISTER_OP_CPU_KERNEL(
+    mul_sparse_grad_grad,
+    ops::MulDoubleGradKernel<paddle::platform::CPUDeviceContext, float>,
+    ops::MulDoubleGradKernel<paddle::platform::CPUDeviceContext, double>);

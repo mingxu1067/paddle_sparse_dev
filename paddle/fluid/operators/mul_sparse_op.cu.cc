@@ -21,3 +21,12 @@ namespace plat = paddle::platform;
 REGISTER_OP_CUDA_KERNEL(mul_sparse, ops::MulKernel<plat::CUDADeviceContext, float>,
                         ops::MulKernel<plat::CUDADeviceContext, double>,
                         ops::MulSparseKernel<plat::CUDADeviceContext, plat::float16>);
+REGISTER_OP_CUDA_KERNEL(
+    mul_sparse_grad, ops::MulGradKernel<plat::CUDADeviceContext, float>,
+    ops::MulGradKernel<plat::CUDADeviceContext, double>,
+    ops::MulGradKernel<plat::CUDADeviceContext, plat::float16>);
+REGISTER_OP_CUDA_KERNEL(
+    mul_sparse_grad_grad,
+    ops::MulDoubleGradKernel<paddle::platform::CUDADeviceContext, float>,
+    ops::MulDoubleGradKernel<paddle::platform::CUDADeviceContext, double>);
+
