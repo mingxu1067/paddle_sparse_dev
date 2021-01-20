@@ -384,7 +384,7 @@ def fc_sparse(input,
     dtype = helper.input_dtype()
     check_dtype(dtype, 'input', ['float16', 'float32', 'float64'], 'fc_sparse')
     if convert_dtype(dtype) in ['float32', 'float64']:
-        fc(input, size, num_flatten_dims, param_attr, bias_attr, act, name)
+        return fc(input, size, num_flatten_dims, param_attr, bias_attr, act, name)
         warnings.warn("fc_sparse only support float16 on GPUs. Insert dense fc.")
     else:
         mul_results = []
