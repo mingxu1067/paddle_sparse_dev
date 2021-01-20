@@ -80,7 +80,7 @@ def main():
                 test_avg_loss_val_mean, test_acc_val_mean))
 
     print("-------------------- Saving model --------------------")
-    fluid.io.save_vars(exe, dirname=SAVE_DIR, main_program=train_prog)
+    fluid.io.save_params(exe, dirname=SAVE_DIR, main_program=train_prog)
     print("Saved model weights to", SAVE_DIR)
 
 if __name__ == "__main__":
