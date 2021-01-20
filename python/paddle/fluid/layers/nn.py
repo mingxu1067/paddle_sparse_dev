@@ -384,8 +384,8 @@ def fc_sparse(input,
     dtype = helper.input_dtype()
     check_dtype(dtype, 'input', ['float16', 'float32', 'float64'], 'fc_sparse')
     if convert_dtype(dtype) in ['float32', 'float64']:
-        return fc(input, size, num_flatten_dims, param_attr, bias_attr, act, name)
         warnings.warn("fc_sparse only support float16 on GPUs. Insert dense fc.")
+        return fc(input, size, num_flatten_dims, param_attr, bias_attr, act, name)
     else:
         mul_results = []
         for input_var, param_attr in helper.iter_inputs_and_params():
@@ -414,9 +414,6 @@ def fc_sparse(input,
                     "lda":param_shape[1],
                     "ldb":param_shape[0],
                     "ldc":param_shape[1],
-                    "is_transpose_A_infer_shape": True,
-                    "is_transpose_B_infer_shape": True,
-                    "is_transpose_C": True,
                     "switch_XY": True})
             mul_results.append(tmp)
 

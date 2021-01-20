@@ -17,19 +17,21 @@ class MulSparseOp : public framework::OperatorWithKernel {
     OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "MulSparse");
     OP_INOUT_CHECK(ctx->HasOutput("Out"), "Output", "Out", "MulSparse");
 
-    bool switch_xy = ctx->Attrs().Get<bool>("switch_XY");
+    DDim x_dims, y_dims;
+    int x_num_col_dims, y_num_col_dims;
+    bool switch_xy = ctx->Attrs().Get<bool>("switch_XY_inferShape");
     if (switch_xy) {
-      auto x_dims = ctx->GetInputDim("V");
-      auto y_dims = ctx->GetInputDim("X");
+      x_dims = ctx->GetInputDim("Y");
+      y_dims = ctx->GetInputDim("X");
 
-      int x_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
-      int y_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
+      x_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
+      y_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
     } else {
-      auto x_dims = ctx->GetInputDim("X");
-      auto y_dims = ctx->GetInputDim("Y");
+      x_dims = ctx->GetInputDim("X");
+      y_dims = ctx->GetInputDim("Y");
 
-      int x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
-      int y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
+      x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
+      y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
     }
 
     VLOG(3) << "mul operator x.shape=" << x_dims << " y.shape=" << y_dims
@@ -61,87 +63,26 @@ class MulSparseOp : public framework::OperatorWithKernel {
     auto x_mat_dims = framework::flatten_to_2d(x_dims, x_num_col_dims);
     auto y_mat_dims = framework::flatten_to_2d(y_dims, y_num_col_dims);
 
-    bool is_transpose_A = ctx->Attrs().Get<bool>("is_transpose_A_infer_shape");
-    bool is_transpose_B = ctx->Attrs().Get<bool>("is_transpose_B_infer_shape");
-
-    bool is_transpose_C = ctx->Attrs().Get<bool>("is_transpose_C");
-
+    PADDLE_ENFORCE_EQ(
+        x_mat_dims[1], y_mat_dims[0],
+        platform::errors::InvalidArgument(
+            "After flatten the input tensor X and Y to 2-D dimensions matrix "
+            "X1 and Y1, the matrix X1's width must be equal with matrix Y1's "
+            "height. But received X's shape = [%s], X1's shape = [%s], X1's "
+            "width = %s; Y's shape = [%s], Y1's shape = [%s], Y1's height = "
+            "%s.",
+            x_dims, x_mat_dims, x_mat_dims[1], y_dims, y_mat_dims,
+            y_mat_dims[0]));
     std::vector<int64_t> output_dims;
     output_dims.reserve(
-          static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
+        static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
 
-    int k1, k2, x_start, x_end, y_start, y_end;
-    size_t dim_size = 0;
-    if (is_transpose_A && is_transpose_B) {
-      k1 = x_mat_dims[0];
-      k2 = y_mat_dims[1];
-
-      dim_size = static_cast<size_t>(x_dims.size() - x_num_col_dims + y_num_col_dims);
-      x_start = x_num_col_dims;
-      x_end = x_dims.size();
-      y_start = 0;
-      y_end = y_num_col_dims;
-
-    } else if (is_transpose_A) {
-      k1 = x_mat_dims[0];
-      k2 = y_mat_dims[0];
-
-      dim_size = static_cast<size_t>(x_dims.size() - x_num_col_dims + y_dims.size() - y_num_col_dims);
-      x_start = x_num_col_dims;
-      x_end = x_dims.size();
-      y_start = y_num_col_dims;
-      y_end = y_dims.size();
-
-    } else if (is_transpose_B) {
-      k1 = x_mat_dims[1];
-      k2 = y_mat_dims[1];
-
-      dim_size = static_cast<size_t>(x_num_col_dims + y_num_col_dims);
-      x_start = 0;
-      x_end = x_num_col_dims;
-      y_start = 0;
-      y_end = y_num_col_dims;
-
-    } else {
-      k1 = x_mat_dims[1];
-      k2 = y_mat_dims[0];
-
-      dim_size = static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims);
-      x_start = 0;
-      x_end = x_num_col_dims;
-      y_start = y_num_col_dims;
-      y_end = y_dims.size();
+    for (int i = 0; i < x_num_col_dims; ++i) {
+      output_dims.push_back(x_dims[i]);
     }
 
-    output_dims.reserve(dim_size);
-    if (is_transpose_C) {
-      for (int i = y_start; i < y_end; ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
-      for (int i = x_start; i < x_end; ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-
-    } else {
-      for (int i = x_start; i < x_end; ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-      for (int i = y_start; i < y_end; ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
-    }
-
-    if (k1 != -1 && k2 != -1) {
-      PADDLE_ENFORCE_EQ(
-          k1, k2,
-          platform::errors::InvalidArgument(
-              "After flatten the input tensor X and Y to 2-D dimensions matrix "
-              "X1 and Y1, the matrix X1's width must be equal with matrix Y1's "
-              "height. But received X's shape = [%s], X1's shape = [%s], X1's "
-              "width = %s; Y's shape = [%s], Y1's shape = [%s], Y1's height = "
-              "%s.",
-              x_dims, x_mat_dims, k1, y_dims, y_mat_dims,
-              k2));
+    for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
+      output_dims.push_back(y_dims[i]);
     }
 
     ctx->SetOutputDim("Out", framework::make_ddim(output_dims));
@@ -213,21 +154,6 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         R"DOC((bool, default False), Does SPMMA transposes matrix B before computing.
         )DOC")
         .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_C",
-        R"DOC((bool, default False), Does SPMMA transposes matrix c after computing.
-        )DOC")
-        .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_A_infer_shape",
-        R"DOC((bool, default False), Does SPMMA transposes matrix A during infering shape.
-        )DOC")
-        .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_B_infer_shape",
-        R"DOC((bool, default False), Does SPMMA transposes matrix B during infering shape.
-        )DOC")
-        .SetDefault(false);
     AddAttr<int>(
         "m",
         R"DOC((int, optional), The m dimension of A (m, k) x B (n, k). default is X.dim[0].
@@ -267,6 +193,11 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
     AddAttr<bool>(
         "switch_XY",
       R"DOC((bool, optional), Let X <- input Y, Y <- input X.
+        )DOC")
+        .SetDefault(false);
+    AddAttr<bool>(
+        "switch_XY_inferShape",
+      R"DOC((bool, optional), Let X <- input Y, Y <- input X dufing inferShape.
         )DOC")
         .SetDefault(false);
     AddComment(R"DOC(
@@ -321,7 +252,7 @@ class MulSparseOpGradMaker : public framework::SingleGradOpMaker<T> {
 
  protected:
   void Apply(GradOpPtr<T> retv) const override {
-    retv->SetType("mul_grad");
+    retv->SetType("mul_sparse_grad");
     retv->SetInput("X", this->Input("X"));
     retv->SetInput("Y", this->Input("Y"));
     retv->SetInput(framework::GradVarName("Out"), this->OutputGrad("Out"));
@@ -339,9 +270,7 @@ REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulS
                   ops::MulSparseOpGradMaker<paddle::framework::OpDesc>,
                   ops::MulSparseOpGradMaker<paddle::imperative::OpBase>);
 
-REGISTER_OPERATOR(mul_sparse_grad, ops::MulSparseGradOp,
-                  ops::MulSparseDoubleGradMaker<paddle::framework::OpDesc>,
-                  ops::MulSparseDoubleGradMaker<paddle::imperative::OpBase>);
+REGISTER_OPERATOR(mul_sparse_grad, ops::MulSparseGradOp);
 
 REGISTER_OP_CPU_KERNEL(
     mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>,
