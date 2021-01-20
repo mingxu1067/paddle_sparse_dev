@@ -61,12 +61,12 @@ class MulSparseKernel : public framework::OpKernel<T> {
     ldb = ldb > 0? ldb:y_matrix.dims()[1];
     ldc = ldc > 0? ldc:z->dims()[1];
 
-    std::vector<int> output_shape_vec = context.Attr<std::vector<int>>("output_shape");
-    if (output_shape_vec.size() > 0) {
-        DDim output_shape(framework::make_ddim(output_shape_vec));
-        z->Resize(output_shape);
-    }
-    // DDim col_shape(framework::make_ddim(col_shape_vec));
+    // std::vector<int> output_shape_vec = context.Attr<std::vector<int>>("output_shape");
+    // if (output_shape_vec.size() > 0) {
+    //     DDim output_shape(framework::make_ddim(output_shape_vec));
+    //     z->Resize(output_shape);
+    // }
+
     cusparseLtHandle_t cusparselt_handle = dev_ctx.cusparselt_handle();
     cusparseLtMatDescriptor_t      matA, matB, matC;
     cusparseLtMatmulDescriptor_t   matmul;
