@@ -126,6 +126,63 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         )DOC")
         .SetDefault(1)
         .EqualGreaterThan(1);
+    AddAttr<bool>(
+        "is_col_major",
+        R"DOC((bool, default False), Is the memory arragement is column-major.
+              Set true for col-major, false for row-major.
+        )DOC")
+        .SetDefault(false);
+    AddAttr<bool>(
+        "is_transpose_A",
+        R"DOC((bool, default False), Does SPMMA transposes matrix A before computing.
+        )DOC")
+        .SetDefault(false);
+    AddAttr<bool>(
+        "is_transpose_B",
+        R"DOC((bool, default False), Does SPMMA transposes matrix B before computing.
+        )DOC")
+        .SetDefault(false);
+    AddAttr<int>(
+        "m",
+        R"DOC((int, optional), The m dimension of A (m, k) x B (n, k). default is X.dim[0].
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<int>(
+        "n",
+        R"DOC((int, optional), The n dimension of A (m, k) x B (n, k). default is Y.dim[1].
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<int>(
+        "k",
+      R"DOC((int, optional), The k dimension of A (m, k) x B (n, k). default is X.dim[1].
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<int>(
+        "lda",
+      R"DOC((int, optional), The leading dimension of A (m, k). default is n.
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<int>(
+        "ldb",
+      R"DOC((int, optional), The leading dimension of B (k, n). default is n.
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<int>(
+        "ldc",
+      R"DOC((int, optional), The leading dimension of C (m, n). default is n.
+        )DOC")
+        .SetDefault(-1)
+        .EqualGreaterThan(-1);
+    AddAttr<std::vector<int>>(
+        "output_shape",
+        "(std::vector<int>, optional) Target shape of output matrix."
+        "default is (*x_dim[:x_num_col_dims], *x_dim[y_num_col_dims:])")
+        .SetDefault({});
     AddComment(R"DOC(
 MulSparse Operator.
 

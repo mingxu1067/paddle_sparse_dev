@@ -9,6 +9,7 @@ namespace paddle {
 namespace operators {
 
 using Tensor = framework::Tensor;
+using DDim = framework::DDim;
 
 template <typename DeviceContext, typename T>
 class MulSparseKernel : public framework::OpKernel<T> {
@@ -31,18 +32,41 @@ class MulSparseKernel : public framework::OpKernel<T> {
             : *y;
 
     z->mutable_data<T>(context.GetPlace());
-    auto z_dim = z->dims();
-    if (z_dim.size() != 2) {
-      z->Resize({x_matrix.dims()[0], y_matrix.dims()[1]});
-    }
+    // auto z_dim = z->dims();
+    // if (z_dim.size() != 2) {
+    //   z->Resize({x_matrix.dims()[0], y_matrix.dims()[1]});
+    // }
 
     unsigned alignment = 16;
     auto type  = CUDA_R_16F;
     auto compute_type = CUSPARSE_COMPUTE_16F;
-    auto          order = CUSPARSE_ORDER_ROW;
-    auto          opA   = CUSPARSE_OPERATION_NON_TRANSPOSE;
-    auto          opB   = CUSPARSE_OPERATION_NON_TRANSPOSE;
+    bool is_col_major = ctx.Attr<bool>("is_col_major");
+    bool is_transpose_A = ctx.Attr<bool>("is_transpose_A");
+    bool is_transpose_B = ctx.Attr<bool>("is_transpose_B");
+    auto          order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
+    auto          opA   = is_transpose_A? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
+    auto          opB   = is_transpose_B? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
 
+    int m = ctx.Attr<int>("m");
+    int n = ctx.Attr<int>("n");
+    int k = ctx.Attr<int>("k");
+    m = m > 0? m:x_matrix.dims()[0];
+    n = n > 0? n:y_matrix.dims()[1];
+    k = k > 0? k:x_matrix.dims()[1];
+
+    int lda = ctx.Attr<int>("lda");
+    int ldb = ctx.Attr<int>("ldb");
+    int ldc = ctx.Attr<int>("ldc");
+    lda = lda > 0? lda:x_matrix.dims()[1];
+    ldb = ldb > 0? ldb:y_matrix.dims()[1];
+    ldc = ldc > 0? ldc:z->dims()[1];
+
+    std::vector<int64_t> output_shape_vec = context.Attr<std::vector<int64_t>>("output_shape");
+    if (output_shape_vec.size() > 0) {
+        DDim output_shape(framework::make_ddim(output_shape_vec));
+        z->Resize(output_shape);
+    }
+    // DDim col_shape(framework::make_ddim(col_shape_vec));
     cusparseLtHandle_t cusparselt_handle = dev_ctx.cusparselt_handle();
     cusparseLtMatDescriptor_t      matA, matB, matC;
     cusparseLtMatmulDescriptor_t   matmul;
@@ -51,16 +75,16 @@ class MulSparseKernel : public framework::OpKernel<T> {
     cudaStream_t                   stream = nullptr;
 
     PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtStructuredDescriptorInit(&cusparselt_handle, &matA, x_matrix.dims()[0],
-                                                            x_matrix.dims()[1], x_matrix.dims()[1], alignment,
+        platform::dynload::cusparseLtStructuredDescriptorInit(&cusparselt_handle, &matA, m,
+                                                            k, lda, alignment,
                                                             type, order, CUSPARSELT_SPARSITY_50_PERCENT));
     PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtDenseDescriptorInit(&cusparselt_handle, &matB, y_matrix.dims()[0],
-                                                            y_matrix.dims()[1], y_matrix.dims()[1], alignment,
+        platform::dynload::cusparseLtDenseDescriptorInit(&cusparselt_handle, &matB, k,
+                                                            n, ldb, alignment,
                                                             type, order));
     PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtDenseDescriptorInit(&cusparselt_handle, &matC, z->dims()[0],
-                                                            z->dims()[1], z->dims()[1], alignment,
+        platform::dynload::cusparseLtDenseDescriptorInit(&cusparselt_handle, &matC, m,
+                                                            n, ldc, alignment,
                                                             type, order));
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtMatmulDescriptorInit(
@@ -129,9 +153,10 @@ class MulSparseKernel : public framework::OpKernel<T> {
     // PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_pruned));
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
 
-    if (z_dim.size() != 2) {
-      z->Resize(z_dim);
-    }
+    // if (z_dim.size() != 2) {
+    //   z->Resize(z_dim);
+    // }
+    
   }
 };
 

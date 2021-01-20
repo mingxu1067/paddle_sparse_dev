@@ -376,7 +376,7 @@ def fc_sparse(input,
        bias_attr=None,
        act=None,
        name=None):
-    helper = LayerHelper("fc_sparse", **locals())
+    helper = LayerHelper("fc", **locals())
     check_type(input, 'input', (list, tuple, Variable), 'fc_sparse')
     if isinstance(input, (list, tuple)):
         for i, input_x in enumerate(input):
@@ -400,18 +400,35 @@ def fc_sparse(input,
                 attr=param_attr, shape=param_shape, dtype=dtype, is_bias=False)
             tmp = helper.create_variable_for_type_inference(dtype)
 
-            input_transposed = transpose(input_var, perm=[1, 0])
-            w_transposed = transpose(w, perm=[1, 0])
-
             helper.append_op(
                 type="mul_sparse",
-                inputs={"X": w_transposed,
-                        "Y": input_transposed},
+                inputs={"X": w,
+                        "Y": input_var},
                 outputs={"Out": tmp},
                 attrs={"x_num_col_dims": 1,
-                    "y_num_col_dims": num_flatten_dims})
-            tmp_transposed = transpose(tmp, perm=[1, 0])
-            mul_results.append(tmp_transposed)
+                    "y_num_col_dims": num_flatten_dims,
+                    "is_col_major": True,
+                    "m":param_shape[1],
+                    "n":input_shape[0],
+                    "k":param_shape[0],
+                    "lda":param_shape[1],
+                    "ldb":param_shape[0],
+                    "ldc":param_shape[1],
+                    "output_shape": [input_shape[0], param_shape[1]]})
+            mul_results.append(tmp)
+
+            # input_transposed = transpose(input_var, perm=[1, 0])
+            # w_transposed = transpose(w, perm=[1, 0])
+
+            # helper.append_op(
+            #     type="mul_sparse",
+            #     inputs={"X": w_transposed,
+            #             "Y": input_transposed},
+            #     outputs={"Out": tmp},
+            #     attrs={"x_num_col_dims": 1,
+            #         "y_num_col_dims": num_flatten_dims})
+            # tmp_transposed = transpose(tmp, perm=[1, 0])
+            # mul_results.append(tmp_transposed)
 
         if len(mul_results) == 1:
             pre_bias = mul_results[0]
