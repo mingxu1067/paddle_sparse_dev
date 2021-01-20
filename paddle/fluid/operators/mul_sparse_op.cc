@@ -51,7 +51,7 @@ class MulSparseOp : public framework::OperatorWithKernel {
     auto x_mat_dims = framework::flatten_to_2d(x_dims, x_num_col_dims);
     auto y_mat_dims = framework::flatten_to_2d(y_dims, y_num_col_dims);
 
-    std::vector<int64_t> output_shape_vec = ctx->Attrs().Get<std::vector<int>>("output_shape");
+    std::vector<int> output_shape_vec = ctx->Attrs().Get<std::vector<int>>("output_shape");
     if (output_shape_vec.size() > 0) {
         ctx->SetOutputDim("Out", framework::make_ddim(output_shape_vec));
     } else {

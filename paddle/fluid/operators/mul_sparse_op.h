@@ -61,7 +61,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
     ldb = ldb > 0? ldb:y_matrix.dims()[1];
     ldc = ldc > 0? ldc:z->dims()[1];
 
-    std::vector<int64_t> output_shape_vec = context.Attr<std::vector<int>>("output_shape");
+    std::vector<int> output_shape_vec = context.Attr<std::vector<int>>("output_shape");
     if (output_shape_vec.size() > 0) {
         DDim output_shape(framework::make_ddim(output_shape_vec));
         z->Resize(output_shape);
