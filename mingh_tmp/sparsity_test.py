@@ -13,7 +13,7 @@ def main():
         input_data = fluid.layers.data(
             name='test_data', shape=[None, 32], dtype='float16')
         fc = fluid.layers.fc(input=input_data, size=8, act=None)
-        fc_sparse = fluid.layers.fc_sparse(input=input_data, size=8, act=None)
+        fc_sparse = fluid.layers.fc_sparse(input=input_data, size=16, act=None)
 
     for param in train_program.global_block().all_parameters():
         print(param.name)
@@ -25,7 +25,7 @@ def main():
     exe.run(startup_prog)
 
     fcw = fluid.global_scope().find_var('fc_0.w_0')
-    fcsw = fluid.global_scope().find_var('fc_sparse_0.w_0')
+    fcsw = fluid.global_scope().find_var('fc_1.w_0')
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
@@ -40,7 +40,7 @@ def main():
     fcsw_param.set(pruned_w, place)
 
     fcb = fluid.global_scope().find_var('fc_0.b_0')
-    fcsb = fluid.global_scope().find_var('fc_sparse_0.b_0')
+    fcsb = fluid.global_scope().find_var('fc_1.b_0')
 
     fcb_param = fcb.get_tensor()
     fcsb_param = fcsb.get_tensor()
