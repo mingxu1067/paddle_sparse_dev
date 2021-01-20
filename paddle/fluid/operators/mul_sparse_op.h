@@ -40,23 +40,23 @@ class MulSparseKernel : public framework::OpKernel<T> {
     unsigned alignment = 16;
     auto type  = CUDA_R_16F;
     auto compute_type = CUSPARSE_COMPUTE_16F;
-    bool is_col_major = ctx.Attr<bool>("is_col_major");
-    bool is_transpose_A = ctx.Attr<bool>("is_transpose_A");
-    bool is_transpose_B = ctx.Attr<bool>("is_transpose_B");
+    bool is_col_major = context.Attr<bool>("is_col_major");
+    bool is_transpose_A = context.Attr<bool>("is_transpose_A");
+    bool is_transpose_B = context.Attr<bool>("is_transpose_B");
     auto          order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
     auto          opA   = is_transpose_A? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
     auto          opB   = is_transpose_B? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
 
-    int m = ctx.Attr<int>("m");
-    int n = ctx.Attr<int>("n");
-    int k = ctx.Attr<int>("k");
+    int m = context.Attr<int>("m");
+    int n = context.Attr<int>("n");
+    int k = context.Attr<int>("k");
     m = m > 0? m:x_matrix.dims()[0];
     n = n > 0? n:y_matrix.dims()[1];
     k = k > 0? k:x_matrix.dims()[1];
 
-    int lda = ctx.Attr<int>("lda");
-    int ldb = ctx.Attr<int>("ldb");
-    int ldc = ctx.Attr<int>("ldc");
+    int lda = context.Attr<int>("lda");
+    int ldb = context.Attr<int>("ldb");
+    int ldc = context.Attr<int>("ldc");
     lda = lda > 0? lda:x_matrix.dims()[1];
     ldb = ldb > 0? ldb:y_matrix.dims()[1];
     ldc = ldc > 0? ldc:z->dims()[1];
