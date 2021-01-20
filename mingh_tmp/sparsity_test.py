@@ -11,9 +11,9 @@ def main():
 
     with fluid.program_guard(train_program, startup_prog):
         input_data = fluid.layers.data(
-            name='test_data', shape=[None, 32], dtype='float16')
-        fc = fluid.layers.fc(input=input_data, size=8, act=None)
-        fc_sparse = fluid.layers.fc_sparse(input=input_data, size=16, act=None)
+            name='test_data', shape=[None, 4, 32], dtype='float16')
+        fc = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=16, act=None)
+        fc_sparse = fluid.layers.fc_sparse(input=input_data, num_flatten_dims=-1, size=16, act=None)
 
     for param in train_program.global_block().all_parameters():
         print(param.name)
@@ -47,15 +47,16 @@ def main():
     fcb_array = np.array(fcb_param)
     fcsb_param.set(fcb_array, place)
 
-    data = np.random.randint(9, size=(8, 32))
+    data = np.random.randint(9, size=(8, 4, 32))
     fc_result, fc_sparse_result = exe.run(
         train_program, feed=feeder.feed([(data,)]), fetch_list=[fc, fc_sparse])
     print(fc_result.shape, fc_sparse_result.shape)
 
     for i in range(8):
-        for j in range(8):
-            if fc_result[i][j] != fc_sparse_result[i][j]:
-                print(i, j, "::", fc_result[i][j], "-" ,fc_sparse_result[i][j])
+        for j in range(4):
+            for k in range(16):
+                if fc_result[i][j][k] != fc_sparse_result[i][j][k]:
+                    print(i, j, "::", fc_result[i][j][k], "-" ,fc_sparse_result[i][j][k])
 
 if __name__ == "__main__":
     main()

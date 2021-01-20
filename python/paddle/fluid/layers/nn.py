@@ -414,21 +414,10 @@ def fc_sparse(input,
                     "lda":param_shape[1],
                     "ldb":param_shape[0],
                     "ldc":param_shape[1],
+                    "is_transpose_A_infer_shape": True,
+                    "is_transpose_B_infer_shape": True,
                     "is_transpose_C": True})
             mul_results.append(tmp)
-
-            # input_transposed = transpose(input_var, perm=[1, 0])
-            # w_transposed = transpose(w, perm=[1, 0])
-
-            # helper.append_op(
-            #     type="mul_sparse",
-            #     inputs={"X": w_transposed,
-            #             "Y": input_transposed},
-            #     outputs={"Out": tmp},
-            #     attrs={"x_num_col_dims": 1,
-            #         "y_num_col_dims": num_flatten_dims})
-            # tmp_transposed = transpose(tmp, perm=[1, 0])
-            # mul_results.append(tmp_transposed)
 
         if len(mul_results) == 1:
             pre_bias = mul_results[0]
