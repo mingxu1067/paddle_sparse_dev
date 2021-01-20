@@ -52,91 +52,34 @@ class MulSparseOp : public framework::OperatorWithKernel {
     auto x_mat_dims = framework::flatten_to_2d(x_dims, x_num_col_dims);
     auto y_mat_dims = framework::flatten_to_2d(y_dims, y_num_col_dims);
 
-    bool is_transpose_A = ctx->Attrs().Get<bool>("is_transpose_A_infer_shape");
-    bool is_transpose_B = ctx->Attrs().Get<bool>("is_transpose_B_infer_shape");
-
-    bool is_transpose_C = ctx->Attrs().Get<bool>("is_transpose_C");
-
-    std::vector<int64_t> output_dims;
-    output_dims.reserve(
-          static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
-
-    int k1, k2;
-    if (is_transpose_A && is_transpose_B) {
-      k1 = x_mat_dims[0];
-      k2 = y_mat_dims[1];
-
-      output_dims.reserve(
-          static_cast<size_t>(x_dims.size() - x_num_col_dims + y_num_col_dims));
-      for (int i = x_num_col_dims; i < x_dims.size(); ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-
-      for (int i = 0; i < y_num_col_dims; ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
-    } else if (is_transpose_A) {
-      k1 = x_mat_dims[0];
-      k2 = y_mat_dims[0];
-
-      output_dims.reserve(
-          static_cast<size_t>(x_dims.size() - x_num_col_dims + y_dims.size() - y_num_col_dims));
-      for (int i = x_num_col_dims; i < x_dims.size(); ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-
-      for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
-
-    } else if (is_transpose_B) {
-      k1 = x_mat_dims[1];
-      k2 = y_mat_dims[1];
-
-      output_dims.reserve(
-          static_cast<size_t>(x_num_col_dims + y_num_col_dims));
-
-      for (int i = 0; i < x_num_col_dims; ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-
-      for (int i = 0; i < y_num_col_dims; ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
+    std::vector<int> output_shape_vec = ctx->Attrs().Get<std::vector<int>>("output_shape");
+    if (output_shape_vec.size() > 0) {
+        ctx->SetOutputDim("Out", framework::make_ddim(output_shape_vec));
     } else {
-      k1 = x_mat_dims[1];
-      k2 = y_mat_dims[0];
-
-      output_dims.reserve(
-          static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
-
-      for (int i = 0; i < x_num_col_dims; ++i) {
-        output_dims.push_back(x_dims[i]);
-      }
-
-      for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
-        output_dims.push_back(y_dims[i]);
-      }
-    }
-
-    if (is_transpose_C) {
-      std::reverse(output_dims.begin(), output_dims.end())
-    }
-
-    if (k1 != -1 && k2 != -1) {
       PADDLE_ENFORCE_EQ(
-          k1, k2,
+          x_mat_dims[1], y_mat_dims[0],
           platform::errors::InvalidArgument(
               "After flatten the input tensor X and Y to 2-D dimensions matrix "
               "X1 and Y1, the matrix X1's width must be equal with matrix Y1's "
               "height. But received X's shape = [%s], X1's shape = [%s], X1's "
               "width = %s; Y's shape = [%s], Y1's shape = [%s], Y1's height = "
               "%s.",
-              x_dims, x_mat_dims, k1, y_dims, y_mat_dims,
-              k2));
-    }
+              x_dims, x_mat_dims, x_mat_dims[1], y_dims, y_mat_dims,
+              y_mat_dims[0]));
+      std::vector<int64_t> output_dims;
+      output_dims.reserve(
+          static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
 
-    ctx->SetOutputDim("Out", framework::make_ddim(output_dims));
+      for (int i = 0; i < x_num_col_dims; ++i) {
+        output_dims.push_back(x_dims[i]);
+      }
+
+      for (int i = y_num_col_dims; i < y_dims.size(); ++i) {
+        output_dims.push_back(y_dims[i]);
+      }
+
+      ctx->SetOutputDim("Out", framework::make_ddim(output_dims));
+    }
     ctx->ShareLoD("X", /*->*/ "Out");
   }
 
@@ -205,21 +148,6 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         R"DOC((bool, default False), Does SPMMA transposes matrix B before computing.
         )DOC")
         .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_C",
-        R"DOC((bool, default False), Does SPMMA transposes matrix c after computing.
-        )DOC")
-        .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_A_infer_shape",
-        R"DOC((bool, default False), Does SPMMA transposes matrix A during infering shape.
-        )DOC")
-        .SetDefault(false);
-    AddAttr<bool>(
-        "is_transpose_B_infer_shape",
-        R"DOC((bool, default False), Does SPMMA transposes matrix B during infering shape.
-        )DOC")
-        .SetDefault(false);
     AddAttr<int>(
         "m",
         R"DOC((int, optional), The m dimension of A (m, k) x B (n, k). default is X.dim[0].
@@ -256,6 +184,11 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
+    AddAttr<std::vector<int>>(
+        "output_shape",
+        "(std::vector<int>, optional) Target shape of output matrix."
+        "default is (*x_dim[:x_num_col_dims], *x_dim[y_num_col_dims:])")
+        .SetDefault({});
     AddComment(R"DOC(
 MulSparse Operator.
 
