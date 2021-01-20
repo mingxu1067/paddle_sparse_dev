@@ -62,7 +62,7 @@ class MulSparseOp : public framework::OperatorWithKernel {
           static_cast<size_t>(x_num_col_dims + y_dims.size() - y_num_col_dims));
 
     int k1, k2;
-    if (is_transpose_A && is_transpose_B) {
+    if (is_transpose_C or (is_transpose_A && is_transpose_B)) {
       k1 = x_mat_dims[0];
       k2 = y_mat_dims[1];
 
@@ -130,9 +130,9 @@ class MulSparseOp : public framework::OperatorWithKernel {
             x_dims, x_mat_dims, k1, y_dims, y_mat_dims,
             k2));
 
-    if (is_transpose_C) {
-      std::reverse(output_dims.begin(), output_dims.end());
-    }
+    // if (is_transpose_C) {
+    //   std::reverse(output_dims.begin(), output_dims.end());
+    // }
 
     // std::vector<int> output_shape_vec = ctx->Attrs().Get<std::vector<int>>("output_shape");
     // if (output_shape_vec.size() > 0) {
