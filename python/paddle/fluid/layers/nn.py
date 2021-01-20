@@ -402,11 +402,11 @@ def fc_sparse(input,
 
             helper.append_op(
                 type="mul_sparse",
-                inputs={"X": w,
-                        "Y": input_var},
+                inputs={"X": input_var,
+                        "Y": w},
                 outputs={"Out": tmp},
-                attrs={"x_num_col_dims": 1,
-                    "y_num_col_dims": num_flatten_dims,
+                attrs={"x_num_col_dims": num_flatten_dims,
+                    "y_num_col_dims": 1,
                     "is_col_major": True,
                     "m":param_shape[1],
                     "n":input_shape[0],
@@ -416,7 +416,8 @@ def fc_sparse(input,
                     "ldc":param_shape[1],
                     "is_transpose_A_infer_shape": True,
                     "is_transpose_B_infer_shape": True,
-                    "is_transpose_C": True})
+                    "is_transpose_C": True,
+                    "switch_XY": True})
             mul_results.append(tmp)
 
         if len(mul_results) == 1:

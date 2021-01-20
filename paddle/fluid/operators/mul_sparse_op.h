@@ -17,19 +17,38 @@ class MulSparseKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext& context) const override {
     auto& dev_ctx = context.template device_context<platform::CUDADeviceContext>();
 
-    const Tensor* x = context.Input<Tensor>("X");
-    const Tensor* y = context.Input<Tensor>("Y");
+    bool switch_xy = context.Attr<bool>("switch_XY");
+    if (switch_xy) {
+        const Tensor* x = context.Input<Tensor>("Y");
+        const Tensor* y = context.Input<Tensor>("X");
+
+        const Tensor x_matrix =
+            x->dims().size() > 2
+                ? framework::ReshapeToMatrix(
+                      *x, context.template Attr<int>("y_num_col_dims"))
+                : *x;
+        const Tensor y_matrix =
+            y->dims().size() > 2
+                ? framework::ReshapeToMatrix(
+                      *y, context.template Attr<int>("x_num_col_dims"))
+                : *y;
+    } else {
+        const Tensor* x = context.Input<Tensor>("X");
+        const Tensor* y = context.Input<Tensor>("Y");
+
+        const Tensor x_matrix =
+            x->dims().size() > 2
+                ? framework::ReshapeToMatrix(
+                      *x, context.template Attr<int>("x_num_col_dims"))
+                : *x;
+        const Tensor y_matrix =
+            y->dims().size() > 2
+                ? framework::ReshapeToMatrix(
+                      *y, context.template Attr<int>("y_num_col_dims"))
+                : *y;
+    }
+
     Tensor* z = context.Output<Tensor>("Out");
-    const Tensor x_matrix =
-        x->dims().size() > 2
-            ? framework::ReshapeToMatrix(
-                  *x, context.template Attr<int>("x_num_col_dims"))
-            : *x;
-    const Tensor y_matrix =
-        y->dims().size() > 2
-            ? framework::ReshapeToMatrix(
-                  *y, context.template Attr<int>("y_num_col_dims"))
-            : *y;
 
     unsigned alignment = 16;
     auto type  = CUDA_R_16F;

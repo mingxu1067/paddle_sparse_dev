@@ -17,11 +17,20 @@ class MulSparseOp : public framework::OperatorWithKernel {
     OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "MulSparse");
     OP_INOUT_CHECK(ctx->HasOutput("Out"), "Output", "Out", "MulSparse");
 
-    auto x_dims = ctx->GetInputDim("X");
-    auto y_dims = ctx->GetInputDim("Y");
+    bool switch_xy = ctx->Attrs().Get<bool>("switch_XY");
+    if (switch_xy) {
+      auto x_dims = ctx->GetInputDim("V");
+      auto y_dims = ctx->GetInputDim("X");
 
-    int x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
-    int y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
+      int x_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
+      int y_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
+    } else {
+      auto x_dims = ctx->GetInputDim("X");
+      auto y_dims = ctx->GetInputDim("Y");
+
+      int x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
+      int y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
+    }
 
     VLOG(3) << "mul operator x.shape=" << x_dims << " y.shape=" << y_dims
             << " x_num_col_dims=" << x_num_col_dims
@@ -255,6 +264,11 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
+    AddAttr<bool>(
+        "switch_XY",
+      R"DOC((bool, optional), Let X <- input Y, Y <- input X.
+        )DOC")
+        .SetDefault(false);
     AddComment(R"DOC(
 MulSparse Operator.
 This operator is used to perform sparse matrix multiplication for input $X$ and $Y$.
@@ -266,13 +280,23 @@ or not. But the output only shares the LoD information with input $X$.
   }
 };
 
+class MulSparseOpInferVarType : public framework::PassInDtypeAndVarTypeToOutput {
+ protected:
+  std::unordered_map<std::string, std::string>& GetInputOutputWithSameType()
+      const override {
+    static std::unordered_map<std::string, std::string> m{{"X", /*->*/ "Out"}};
+    return m;
+  }
+};
+
+
 class MulSparseGradOp : public framework::OperatorWithKernel {
  public:
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext* ctx) const override {
-    OP_INOUT_CHECK(ctx->HasInput("X"), "Input", "X", "mul");
-    OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "mul");
+    OP_INOUT_CHECK(ctx->HasInput("X"), "Input", "X", "mul_sparse");
+    OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "mul_sparse");
     OP_INOUT_CHECK(ctx->HasInput(framework::GradVarName("Out")), "Input",
                    "Out@GRAD", "mul");
     auto x_dims = ctx->GetInputDim("X");
@@ -290,19 +314,34 @@ class MulSparseGradOp : public framework::OperatorWithKernel {
   }
 };
 
+template <typename T>
+class MulSparseOpGradMaker : public framework::SingleGradOpMaker<T> {
+ public:
+  using framework::SingleGradOpMaker<T>::SingleGradOpMaker;
+
+ protected:
+  void Apply(GradOpPtr<T> retv) const override {
+    retv->SetType("mul_grad");
+    retv->SetInput("X", this->Input("X"));
+    retv->SetInput("Y", this->Input("Y"));
+    retv->SetInput(framework::GradVarName("Out"), this->OutputGrad("Out"));
+    retv->SetOutput(framework::GradVarName("X"), this->InputGrad("X"));
+    retv->SetOutput(framework::GradVarName("Y"), this->InputGrad("Y"));
+    retv->SetAttrMap(this->Attrs());
+  }
+};
+
 }  // namespace operators
 }  // namespace paddle
 
 namespace ops = paddle::operators;
 REGISTER_OPERATOR(mul_sparse, ops::MulSparseOp, ops::MulSparseOpMaker, ops::MulSparseOpInferVarType,
-                  ops::MulOpGradMaker<paddle::framework::OpDesc>,
-                  ops::MulOpGradMaker<paddle::imperative::OpBase>);
+                  ops::MulSparseOpGradMaker<paddle::framework::OpDesc>,
+                  ops::MulSparseOpGradMaker<paddle::imperative::OpBase>);
 
-REGISTER_OPERATOR(mul_sparse_grad, ops::MulGradOp,
-                  ops::MulDoubleGradMaker<paddle::framework::OpDesc>,
-                  ops::MulDoubleGradMaker<paddle::imperative::OpBase>);
-
-REGISTER_OPERATOR(mul_sparse_grad_grad, ops::MulDoubleGradOp);
+REGISTER_OPERATOR(mul_sparse_grad, ops::MulSparseGradOp,
+                  ops::MulSparseDoubleGradMaker<paddle::framework::OpDesc>,
+                  ops::MulSparseDoubleGradMaker<paddle::imperative::OpBase>);
 
 REGISTER_OP_CPU_KERNEL(
     mul_sparse, ops::MulKernel<paddle::platform::CPUDeviceContext, float>,
@@ -311,8 +350,3 @@ REGISTER_OP_CPU_KERNEL(
 REGISTER_OP_CPU_KERNEL(
     mul_sparse_grad, ops::MulGradKernel<paddle::platform::CPUDeviceContext, float>,
     ops::MulGradKernel<paddle::platform::CPUDeviceContext, double>);
-
-REGISTER_OP_CPU_KERNEL(
-    mul_sparse_grad_grad,
-    ops::MulDoubleGradKernel<paddle::platform::CPUDeviceContext, float>,
-    ops::MulDoubleGradKernel<paddle::platform::CPUDeviceContext, double>);
