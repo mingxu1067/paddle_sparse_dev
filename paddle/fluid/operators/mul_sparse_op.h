@@ -31,12 +31,6 @@ class MulSparseKernel : public framework::OpKernel<T> {
                   *y, context.template Attr<int>("y_num_col_dims"))
             : *y;
 
-    z->mutable_data<T>(context.GetPlace());
-    // auto z_dim = z->dims();
-    // if (z_dim.size() != 2) {
-    //   z->Resize({x_matrix.dims()[0], y_matrix.dims()[1]});
-    // }
-
     unsigned alignment = 16;
     auto type  = CUDA_R_16F;
     auto compute_type = CUSPARSE_COMPUTE_16F;
@@ -61,11 +55,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
     ldb = ldb > 0? ldb:y_matrix.dims()[1];
     ldc = ldc > 0? ldc:z->dims()[1];
 
-    // std::vector<int> output_shape_vec = context.Attr<std::vector<int>>("output_shape");
-    // if (output_shape_vec.size() > 0) {
-    //     DDim output_shape(framework::make_ddim(output_shape_vec));
-    //     z->Resize(output_shape);
-    // }
+    z->mutable_data<T>(context.GetPlace());
 
     cusparseLtHandle_t cusparselt_handle = dev_ctx.cusparselt_handle();
     cusparseLtMatDescriptor_t      matA, matB, matC;
@@ -152,11 +142,6 @@ class MulSparseKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
     // PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_pruned));
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
-
-    // if (z_dim.size() != 2) {
-    //   z->Resize(z_dim);
-    // }
-    
   }
 };
 

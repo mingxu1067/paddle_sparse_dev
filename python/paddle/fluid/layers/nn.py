@@ -400,7 +400,6 @@ def fc_sparse(input,
                 attr=param_attr, shape=param_shape, dtype=dtype, is_bias=False)
             tmp = helper.create_variable_for_type_inference(dtype)
 
-            output_shape = [input_shape[:num_flatten_dims], param_shape[1:]]
             helper.append_op(
                 type="mul_sparse",
                 inputs={"X": w,
@@ -415,7 +414,9 @@ def fc_sparse(input,
                     "lda":param_shape[1],
                     "ldb":param_shape[0],
                     "ldc":param_shape[1],
-                    "output_shape":output_shape})
+                    "is_transpose_A_infer_shape": True,
+                    "is_transpose_B_infer_shape": True,
+                    "is_transpose_C": True})
             mul_results.append(tmp)
 
         if len(mul_results) == 1:
