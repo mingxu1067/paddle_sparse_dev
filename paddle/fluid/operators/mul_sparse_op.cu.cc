@@ -24,5 +24,5 @@ REGISTER_OP_CUDA_KERNEL(mul_sparse, ops::MulKernel<plat::CUDADeviceContext, floa
 REGISTER_OP_CUDA_KERNEL(
     mul_sparse_grad, ops::MulGradKernel<plat::CUDADeviceContext, float>,
     ops::MulGradKernel<plat::CUDADeviceContext, double>,
-    ops::MulGradKernel<plat::CUDADeviceContext, plat::float16>);
+    ops::MulSparseGradKernel<plat::CUDADeviceContext, plat::float16>);
 

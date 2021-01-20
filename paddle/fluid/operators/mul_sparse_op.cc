@@ -226,10 +226,10 @@ class MulSparseGradOp : public framework::OperatorWithKernel {
   using framework::OperatorWithKernel::OperatorWithKernel;
 
   void InferShape(framework::InferShapeContext* ctx) const override {
-    OP_INOUT_CHECK(ctx->HasInput("X"), "Input", "X", "mul_sparse");
-    OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "mul_sparse");
+    OP_INOUT_CHECK(ctx->HasInput("X"), "Input", "X", "MulSparse");
+    OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "MulSparse");
     OP_INOUT_CHECK(ctx->HasInput(framework::GradVarName("Out")), "Input",
-                   "Out@GRAD", "mul");
+                   "Out@GRAD", "MulSparse");
     auto x_dims = ctx->GetInputDim("X");
     auto y_dims = ctx->GetInputDim("Y");
 

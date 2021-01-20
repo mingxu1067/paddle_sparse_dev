@@ -165,5 +165,58 @@ class MulSparseKernel : public framework::OpKernel<T> {
   }
 };
 
+template <typename DeviceContext, typename T>
+class MulSparseGradKernel : public framework::OpKernel<T> {
+ public:
+  void Compute(const framework::ExecutionContext& ctx) const override {
+    int x_num_col_dims = ctx.template Attr<int>("x_num_col_dims");
+    int y_num_col_dims = ctx.template Attr<int>("y_num_col_dims");
+    auto* x = ctx.Input<framework::LoDTensor>("X");
+    auto* y = ctx.Input<framework::LoDTensor>("Y");
+    auto x_matrix = x->dims().size() > 2
+                        ? framework::ReshapeToMatrix(*x, x_num_col_dims)
+                        : static_cast<const Tensor&>(*x);
+    auto y_matrix = y->dims().size() > 2
+                        ? framework::ReshapeToMatrix(*y, y_num_col_dims)
+                        : static_cast<const Tensor&>(*y);
+    auto* dout = ctx.Input<framework::LoDTensor>(framework::GradVarName("Out"));
+
+    Tensor dout_mat;
+    dout_mat.ShareDataWith(*dout);
+    dout_mat.Resize({framework::flatten_to_2d(x->dims(), x_num_col_dims)[0],
+                     framework::flatten_to_2d(y->dims(), y_num_col_dims)[1]});
+
+    auto* dx = ctx.Output<framework::LoDTensor>(framework::GradVarName("X"));
+    auto* dy = ctx.Output<framework::LoDTensor>(framework::GradVarName("Y"));
+
+    if (dx != nullptr) {
+      dx->set_lod(x->lod());
+    }
+    if (dy != nullptr) {
+      dy->set_lod(y->lod());
+    }
+
+    auto& dev_ctx = ctx.template device_context<DeviceContext>();
+    auto blas = math::GetBlas<DeviceContext, T>(dev_ctx);
+    if (dx) {
+      dx->mutable_data<T>(ctx.GetPlace());
+      Tensor dx_matrix = dx->dims().size() > 2
+                             ? framework::ReshapeToMatrix(*dx, x_num_col_dims)
+                             : *dx;
+
+      // dx = dout * y'. dx: M x K, dout : M x N, y : K x N
+      blas.MatMul(dout_mat, false, y_matrix, true, &dx_matrix);
+    }
+    if (dy) {
+      dy->mutable_data<T>(ctx.GetPlace());
+      Tensor dy_matrix = dy->dims().size() > 2
+                             ? framework::ReshapeToMatrix(*dy, y_num_col_dims)
+                             : *dy;
+      // dy = x' * dout. dy K x N, dout : M x N, x : M x K
+      blas.MatMul(x_matrix, true, dout_mat, false, &dy_matrix);
+    }
+  }
+};
+
 }  // namespace operators
 }  // namespace paddle
