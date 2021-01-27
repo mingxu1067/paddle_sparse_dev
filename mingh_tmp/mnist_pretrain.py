@@ -35,7 +35,6 @@ def main():
     place = fluid.CUDAPlace(0)
     exe = fluid.Executor(place)
 
-    # Create Normal Net --------------------------------------------------
     with fluid.program_guard(train_prog, start_prog):
         img, label, predict = build_model()
         cost = fluid.layers.cross_entropy(input=predict, label=label)
@@ -47,8 +46,6 @@ def main():
     with fluid.program_guard(train_prog, start_prog):
         optimizer = fluid.optimizer.SGD(learning_rate=0.001)
         optimizer.minimize(avg_cost)
-
-    # Training --------------------------------------------------
 
     train_reader = paddle.batch(paddle.reader.shuffle(
                                 paddle.dataset.mnist.train(), buf_size=500),
@@ -84,7 +81,7 @@ def main():
     print("Saved dense model weights to", SAVE_DIR)
 
     print("-------------------- Sparsity Pruning --------------------")
-    ASPHelper.prune_model(train_prog, start_prog, place)
+    ASPHelper.prune_model(train_prog, start_prog, place, with_mask=False)
     test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                      feeder, exe, [acc, avg_cost])
     print("Sparse Model: Loss {:.3f} - Accuracy: {:.3f}".format(

@@ -64,19 +64,23 @@ class ASPHelper(object):
         exe.run(start_program)
 
     @classmethod
-    def prune_model(cls, main_program, start_program, place, func_name="get_mask_2d_greedy"):
+    def prune_model(cls, main_program, start_program, place, func_name="get_mask_2d_greedy", with_mask=True):
         for param in main_program.global_block().all_parameters():
             if ASPHelper.is_supported_layer(param.name) and \
                ASPHelper.MASKE_APPENDDED_NAME not in param.name:
                 weight_param = global_scope().find_var(param.name).get_tensor()
-                weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
                 weight_tensor = np.array(weight_param)
                 weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
                 weight_pruned_tensor = np.multiply(weight_tensor, weight_sparse_mask)
                 weight_param.set(weight_pruned_tensor, place)
-                weight_mask_param.set(weight_sparse_mask, place)
                 assert sparsity.check_mask_2d(weight_pruned_tensor, m=4, n=2), \
                         "Pruning {} weight matrix failure!!!".format(param.name)
+                if with_mask:
+                    weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
+                    assert weight_mask_param is None, \
+                        "Cannot find {} parameter, please call ASPHelper.minimize".format(ASPHelper.get_mask_name(param.name)) \
+                        " or ASPHelper.initialize_asp_training first!"
+                    weight_mask_param.set(weight_sparse_mask, place)
                 cls.__masks[param.name] = weight_sparse_mask
         return cls.__masks.copy()
 
