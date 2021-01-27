@@ -77,9 +77,9 @@ class ASPHelper(object):
                         "Pruning {} weight matrix failure!!!".format(param.name)
                 if with_mask:
                     weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
-                    assert weight_mask_param is None, \
-                        "Cannot find {} parameter, please call ASPHelper.minimize".format(ASPHelper.get_mask_name(param.name)) \
-                        " or ASPHelper.initialize_asp_training first!"
+                    assert weight_mask_param is not None, \
+                        "Cannot find {} parameter, please call ASPHelper.minimize" \
+                        " or ASPHelper.initialize_asp_training first!".format(ASPHelper.get_mask_name(param.name))
                     weight_mask_param.set(weight_sparse_mask, place)
                 cls.__masks[param.name] = weight_sparse_mask
         return cls.__masks.copy()
