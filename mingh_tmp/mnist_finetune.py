@@ -65,11 +65,6 @@ def main():
     ))
     fluid.io.load_vars(exe, SAVE_DIR, train_prog, vars=ASPHelper.get_vars(train_prog))
     print("Loaded model from", SAVE_DIR)
-    test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
-                                                     feeder, exe, [acc, avg_cost])
-    print("After Loaded Model: Loss {:.3f} - Accuracy: {:.3f}".format(
-        test_avg_loss_val_mean, test_acc_val_mean
-    ))
 
     print("-------------------- Sparsity Pruning --------------------")
     ASPHelper.prune_model(train_prog, start_prog, place)

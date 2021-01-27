@@ -1,6 +1,6 @@
 import paddle
 import paddle.fluid as fluid
-from paddle.fluid.contrib.sparsity import ASPHelper, check_mask_2d
+from paddle.fluid.contrib.sparsity import ASPHelper
 import numpy as np
 
 def build_model():
@@ -81,7 +81,15 @@ def main():
 
     print("-------------------- Saving model --------------------")
     fluid.io.save_params(exe, dirname=SAVE_DIR, main_program=train_prog)
-    print("Saved model weights to", SAVE_DIR)
+    print("Saved dense model weights to", SAVE_DIR)
+
+    print("-------------------- Sparsity Pruning --------------------")
+    ASPHelper.prune_model(train_prog, start_prog, place)
+    test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
+                                                     feeder, exe, [acc, avg_cost])
+    print("Sparse Model: Loss {:.3f} - Accuracy: {:.3f}".format(
+        test_avg_loss_val_mean, test_acc_val_mean
+    ))
 
 if __name__ == "__main__":
     paddle.enable_static()
