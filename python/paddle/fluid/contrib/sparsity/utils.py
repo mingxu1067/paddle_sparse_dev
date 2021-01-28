@@ -6,7 +6,7 @@ import collections
 import numpy as np
 
 __all__ = ['density', 'reshape_1d', 'check_mask_1d', 'get_mask_1d_greedy',
-           'check_mask_2d', 'get_mask_2d_greedy', 'create_mask']
+           'check_mask_2d', 'get_mask_2d_greedy', 'create_mask', 'check_sparsity']
 
 def density(x):
     x_flattened = x.flatten()
@@ -98,17 +98,36 @@ def create_mask(tensor, func_name="get_mask_2d_greedy", m=4, n=2):
         t = t.reshape(shape[0], shape[1])
         mask = func(t, m, n)
         return mask.reshape(shape).astype(ttype)
-    # 3d-tensor (batch, in, out)
     elif len(shape) == 3:
-        t = t.view(shape[0]*shape[1], shape[2])
+        t = t.reshape(shape[0]*shape[1], shape[2])
         mask = func(t, m, n)
         return mask.reshape(shape).astype(ttype)
-    # 4d-tensor (in, out, h, w) convs
+    # 4d-tensor conv (out, in, h, w) -> (out, in*h*w) in GemmConvKernel Op
     elif len(shape) == 4:
-        t = t.transpose((2,3,0,1)).reshape(shape[2]*shape[3]*shape[0], shape[1])
+        t = t.reshape(shape[0], shape[1]*shape[2]*shape[3])
         mask = func(t, m, n)
-        mask = mask.reshape(shape[2], shape[3], shape[0], shape[1]).transpose(2,3,0,1)
         return mask.reshape(shape).astype(ttype)
+
+def check_sparsity(tensor, func_name="check_mask_2d", m=4, n=2):
+    shape = tensor.shape
+    t = tensor.astype(float)
+
+    func = getattr(sys.modules[__name__], func_name, None)
+    if len(shape) == 1:
+        t = t.reshape(1, shape[0])
+        return func(t, m, n)
+    elif len(shape) == 2:
+        t = t.reshape(shape[0], shape[1])
+        return func(t, m, n)
+    elif len(shape) == 3:
+        t = t.reshape(shape[0]*shape[1], shape[2])
+        return func(t, m, n)
+    # 4d-tensor conv (out, in, h, w) -> (out, in*h*w) in GemmConvKernel Op
+    elif len(shape) == 4:
+        t = t.reshape(shape[0], shape[1]*shape[2]*shape[3])
+        return func(t, m, n)
+
+    return False
 
 if __name__ == "__main__":
 

@@ -8,7 +8,7 @@ __all__ = ['ASPHelper']
 class ASPHelper(object):
 
     MASKE_APPENDDED_NAME = '_asp_mask'
-    SUPPORTED_LAYERS = {'fc':'w_0'}
+    SUPPORTED_LAYERS = {'fc':'w_0', 'conv2d':'w_0'}
 
     __mask_vars = {}
     __masks = {}
@@ -49,6 +49,8 @@ class ASPHelper(object):
                                  name=param_and_grad[0].name + ASPHelper.MASKE_APPENDDED_NAME,
                                  shape=param_and_grad[0].shape, dtype=param_and_grad[0].dtype,
                                  default_initializer=ConstantInitializer(value=1.0))
+                    mask_param.stop_gradient=True
+                    mask_param.trainable=False
                     cls.__mask_vars[param_and_grad[0].name] = mask_param
 
     @classmethod
@@ -60,6 +62,8 @@ class ASPHelper(object):
                                  name=param.name + ASPHelper.MASKE_APPENDDED_NAME,
                                  shape=param.shape, dtype=param.dtype,
                                  default_initializer=ConstantInitializer(value=1.0))
+                    mask_param.stop_gradient=True
+                    mask_param.trainable=False
                     cls.__mask_vars[param.name] = mask_param
         exe.run(start_program)
 
@@ -73,7 +77,7 @@ class ASPHelper(object):
                 weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
                 weight_pruned_tensor = np.multiply(weight_tensor, weight_sparse_mask)
                 weight_param.set(weight_pruned_tensor, place)
-                assert sparsity.check_mask_2d(weight_pruned_tensor, m=4, n=2), \
+                assert sparsity.check_sparsity(weight_pruned_tensor, m=4, n=2), \
                         "Pruning {} weight matrix failure!!!".format(param.name)
                 if with_mask:
                     weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
