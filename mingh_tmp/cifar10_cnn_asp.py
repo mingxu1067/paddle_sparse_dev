@@ -45,7 +45,7 @@ def test(test_program, test_reader, test_feader, exe, fetch_list):
 
 def main():
     BATCH_SIZE = 128
-    EPOCHS = 120
+    EPOCHS = 180
     SAVE_DIR = "cifar10_cnn_asp_test"
 
     train_prog = fluid.Program()
@@ -63,7 +63,8 @@ def main():
     test_program = train_prog.clone(for_test=True)
 
     with fluid.program_guard(train_prog, start_prog):
-        optimizer = fluid.optimizer.SGD(learning_rate=0.001)
+        optimizer = fluid.optimizer.SGD(learning_rate=fluid.layers.polynomial_decay(
+                                                       0.001, 2000, 0.0001, power=1))
         ASPHelper.minimize(avg_cost, optimizer, place, train_prog, start_prog)
         # optimizer.minimize(avg_cost)
 
@@ -83,10 +84,6 @@ def main():
             metrics = exe.run(train_prog,
                           feed=feeder.feed(data),
                           fetch_list=[avg_cost, acc])
-
-            if batch_id % 100 == 0:
-                print("Epoch {:3d} - Batch {:3}:\tTraining Loss {:.3f} - Traing Acc {:.3f}".format(
-                        epoch_id, batch_id, metrics[0].mean(), metrics[1].mean()))
 
         test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                          feeder, exe, [acc, avg_cost])
@@ -118,10 +115,6 @@ def main():
             metrics = exe.run(train_prog,
                           feed=feeder.feed(data),
                           fetch_list=[avg_cost, acc])
-
-            if batch_id % 100 == 0:
-                print("Epoch {:3d} - Batch {:3}:\tTraining Loss {:.3f} - Traing Acc {:.3f}".format(
-                        epoch_id, batch_id, metrics[0].mean(), metrics[1].mean()))
 
         test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                          feeder, exe, [acc, avg_cost])
