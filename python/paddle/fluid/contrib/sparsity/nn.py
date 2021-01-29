@@ -2,6 +2,9 @@ from paddle.fluid.data_feeder import check_type, check_dtype, convert_dtype
 from paddle.fluid.layer_helper import LayerHelper
 from paddle.fluid.framework import Variable
 
+from functools import reduce
+import warnings
+
 __all__ = ['fc_sparse']
 
 def fc_sparse(input,
