@@ -36,6 +36,8 @@ else()
 endif()
 
 if(CUSPARSELT_FOUND)
+    file(READ ${CUSPARSELT_INCLUDE_DIR}/cusparseLt.h CUSPARSELT_FILE_CONTENTS)
+    message(STATUS "Current cuSparseLt header is ${CUSPARSELT_FILE_CONTENTS}")
     include_directories(${CUSPARSELT_INCLUDE_DIR})
     link_directories(${CUSPARSELT_LIBRARY})
     add_definitions(-DPADDLE_WITH_CUSPARSELT)
