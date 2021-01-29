@@ -838,12 +838,12 @@ inline std::string build_nvidia_error_msg(cublasStatus_t stat) {
   return msg + cublasGetErrorString(stat) + " ";
 }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
 /***** CUSPARSE ERROR *****/
 inline bool is_error(cusparseStatus_t stat) {
   return stat != CUSPARSE_STATUS_SUCCESS;
 }
 
-#if defined(PADDLE_WITH_CUSPARSELT)
 inline const char* cusparseltGetErrorString(cusparseStatus_t stat) {
   switch (stat) {
     case CUSPARSE_STATUS_NOT_INITIALIZED:
@@ -947,7 +947,9 @@ DEFINE_CUDA_STATUS_TYPE(curandStatus_t, CURAND_STATUS_SUCCESS);
 DEFINE_CUDA_STATUS_TYPE(cudnnStatus_t, CUDNN_STATUS_SUCCESS);
 DEFINE_CUDA_STATUS_TYPE(cublasStatus_t, CUBLAS_STATUS_SUCCESS);
 DEFINE_CUDA_STATUS_TYPE(cusolverStatus_t, CUSOLVER_STATUS_SUCCESS);
+#if defined(PADDLE_WITH_CUSPARSELT)
 DEFINE_CUDA_STATUS_TYPE(cusparseStatus_t, CUSPARSE_STATUS_SUCCESS);
+#endif
 
 #if !defined(__APPLE__) && defined(PADDLE_WITH_NCCL)
 DEFINE_CUDA_STATUS_TYPE(ncclResult_t, ncclSuccess);

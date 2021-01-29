@@ -38,6 +38,10 @@ if (WITH_GPU AND TENSORRT_FOUND)
     add_subdirectory(tensorrt)
 endif()
 
+if (WITH_GPU AND CUSPARSELT_FOUND)
+    add_subdirectory(cusparselt)
+endif()
+
 if (WITH_LITE)
     add_subdirectory(lite)
 endif()
