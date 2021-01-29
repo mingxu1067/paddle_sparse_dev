@@ -1,4 +1,4 @@
-#include "paddle/fluid/operators/mul_sparse_op.h"
+#include "paddle/fluid/operators/cusparselt/mul_sparse_op.h"
 #include "paddle/fluid/operators/mul_op.h"
 #include <algorithm>
 
