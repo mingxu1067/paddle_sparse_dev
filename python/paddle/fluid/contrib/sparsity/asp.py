@@ -37,7 +37,7 @@ class ASPHelper(object):
     def minimize(cls, loss, optimizer, place, main_program, start_program):
         optimizer_ops, params_and_grads = optimizer.minimize(loss)
         cls.create_mask_variables(main_program, start_program, params_and_grads)
-        cls.insert_grads_mask_ops(main_program, start_program, optimizer.type, params_and_grads)
+        cls.insert_sparse_mask_ops(main_program, start_program, optimizer.type, params_and_grads)
         return optimizer_ops, params_and_grads
 
     @classmethod
@@ -52,20 +52,6 @@ class ASPHelper(object):
                     mask_param.stop_gradient=True
                     mask_param.trainable=False
                     cls.__mask_vars[param_and_grad[0].name] = mask_param
-
-    @classmethod
-    def initialize_asp_training(cls, main_program, start_program, exe):
-        with program_guard(main_program, start_program):
-            for param in main_program.all_parameters():
-                if ASPHelper.is_supported_layer(param.name):
-                    mask_param = layers.create_parameter(
-                                 name=param.name + ASPHelper.MASKE_APPENDDED_NAME,
-                                 shape=param.shape, dtype=param.dtype,
-                                 default_initializer=ConstantInitializer(value=1.0))
-                    mask_param.stop_gradient=True
-                    mask_param.trainable=False
-                    cls.__mask_vars[param.name] = mask_param
-        exe.run(start_program)
 
     @classmethod
     def prune_model(cls, main_program, start_program, place, func_name="get_mask_2d_greedy", with_mask=True):
@@ -89,21 +75,30 @@ class ASPHelper(object):
         return cls.__masks.copy()
 
     @classmethod
-    def insert_grads_mask_ops(cls, main_program, start_program, optimizer_type, param_grads):
+    def insert_sparse_mask_ops(cls, main_program, start_program, optimizer_type, param_grads):
         block = main_program.global_block()
-        ops = main_program.global_block().ops
-        for idx in range(len(ops)):
-            if ops[idx].type == optimizer_type:
-                for param_grad in param_grads:
-                    if param_grad[0].name in cls.__mask_vars:
-                        block._insert_op(
-                            idx,
-                            type='elementwise_mul',
-                            inputs={"X": param_grad[1],
-                                    'Y': cls.__mask_vars[param_grad[0].name]},
-                            outputs={'Out': param_grad[1]},
-                            attrs={'axis': -1,
-                                    'use_mkldnn': False})
-                break
+        for param_grad in param_grads:
+            block.append_op(
+                type='elementwise_mul',
+                inputs={"X": param_grad[0],
+                        'Y': cls.__mask_vars[param_grad[0].name]},
+                outputs={'Out': param_grad[0]},
+                attrs={'axis': -1,
+                        'use_mkldnn': False}
+            )
+        # ops = main_program.global_block().ops
+        # for idx in range(len(ops)):
+        #     if ops[idx].type == optimizer_type:
+        #         for param_grad in param_grads:
+        #             if param_grad[0].name in cls.__mask_vars:
+        #                 block._insert_op(
+        #                     idx,
+        #                     type='elementwise_mul',
+        #                     inputs={"X": param_grad[1],
+        #                             'Y': cls.__mask_vars[param_grad[0].name]},
+        #                     outputs={'Out': param_grad[1]},
+        #                     attrs={'axis': -1,
+        #                             'use_mkldnn': False})
+        #         break
 
 

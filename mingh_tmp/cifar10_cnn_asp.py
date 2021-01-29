@@ -63,8 +63,7 @@ def main():
     test_program = train_prog.clone(for_test=True)
 
     with fluid.program_guard(train_prog, start_prog):
-        optimizer = fluid.optimizer.SGD(learning_rate=fluid.layers.polynomial_decay(
-                                                       0.001, 2000, 0.0001, power=1))
+        optimizer = fluid.optimizer.Adam(learning_rate=0.001)
         ASPHelper.minimize(avg_cost, optimizer, place, train_prog, start_prog)
         # optimizer.minimize(avg_cost)
 
