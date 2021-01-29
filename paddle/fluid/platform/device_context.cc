@@ -319,7 +319,9 @@ CUDAContext::CUDAContext(const CUDAPlace& place,
   InitCuBlasContext();
   InitCuDNNContext();
   InitCuSolverContext();
+#if defined(PADDLE_WITH_CUSPARSELT)
   InitCuSparseLtContext();
+#endif
 }
 
 CUDAContext::~CUDAContext() {
@@ -327,7 +329,9 @@ CUDAContext::~CUDAContext() {
   DestoryCuDNNContext();
   DestoryCuBlasContext();
   DestoryCuSolverContext();
+#if defined(PADDLE_WITH_CUSPARSELT)
   DestoryCuSparseLtContext();
+#endif
 }
 
 CUDADeviceContext::CUDADeviceContext(CUDAPlace place) : place_(place) {
@@ -427,9 +431,11 @@ cusolverDnHandle_t CUDADeviceContext::cusolver_dn_handle() const {
   return context()->CusolverDnHandle();
 }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
 cusparseLtHandle_t CUDADeviceContext::cusparselt_handle() const {
   return context()->CusparseltHandle();
 }
+#endif
 
 cudaStream_t CUDADeviceContext::stream() const {
   return context()->RawStream();

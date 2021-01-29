@@ -250,6 +250,7 @@ if(WITH_GPU)
     # there is no official support of nccl, cupti in windows
     if(NOT WIN32)
         include(cupti)
+        include(cusparselt)
     endif()
 endif()
 

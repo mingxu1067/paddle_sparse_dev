@@ -30,7 +30,9 @@ limitations under the License. */
 
 #ifdef PADDLE_WITH_CUDA
 #include <cublas_v2.h>
+#if defined(PADDLE_WITH_CUSPARSELT)
 #include <cusparseLt.h>
+#endif
 #include <cudnn.h>
 #include <curand.h>
 #include <thrust/system/cuda/error.h>
@@ -841,6 +843,7 @@ inline bool is_error(cusparseStatus_t stat) {
   return stat != CUSPARSE_STATUS_SUCCESS;
 }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
 inline const char* cusparseltGetErrorString(cusparseStatus_t stat) {
   switch (stat) {
     case CUSPARSE_STATUS_NOT_INITIALIZED:
@@ -870,6 +873,7 @@ inline std::string build_nvidia_error_msg(cusparseStatus_t stat) {
   std::string msg(" CuSparseLt error, ");
   return msg + cusparseltGetErrorString(stat) + " ";
 }
+#endif
 
 /***** CUSOLVER ERROR *****/
 inline bool is_error(cusolverStatus_t stat) {

@@ -26,7 +26,9 @@ namespace dynload {
 #endif
 
 void* GetCublasDsoHandle();
+#if defined(PADDLE_WITH_CUSPARSELT)
 void* GetCusparseltDsoHandle();
+#endif
 void* GetCUDNNDsoHandle();
 void* GetCUPTIDsoHandle();
 void* GetCurandDsoHandle();

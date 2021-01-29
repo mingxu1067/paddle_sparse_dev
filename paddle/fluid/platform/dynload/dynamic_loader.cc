@@ -271,9 +271,11 @@ void* GetCublasDsoHandle() {
 #endif
 }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
 void* GetCusparseltDsoHandle() {
   return GetDsoHandleFromSearchPath(FLAGS_cuda_dir, "libcusparseLt.so");
 }
+#endif
 
 void* GetCUDNNDsoHandle() {
 #if defined(__APPLE__) || defined(__OSX__)

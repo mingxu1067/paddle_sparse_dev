@@ -24,7 +24,9 @@ limitations under the License. */
 #include "paddle/fluid/platform/dynload/cublas.h"
 #include "paddle/fluid/platform/dynload/cudnn.h"
 #include "paddle/fluid/platform/dynload/cusolver.h"
+#if defined(PADDLE_WITH_CUSPARSELT)
 #include "paddle/fluid/platform/dynload/cusparselt.h"
+#endif
 #if !defined(__APPLE__) && defined(PADDLE_WITH_NCCL)
 #include "paddle/fluid/platform/dynload/nccl.h"
 #endif
@@ -192,7 +194,9 @@ class CUDAContext {
     return cublas_tensor_core_handle_;
   }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
   const cusparseLtHandle_t& CusparseltHandle() const { return cusparselt_handle_; }
+#endif
 
   /*! \brief  Call cublas function safely. */
   template <typename Callback>
@@ -265,9 +269,11 @@ class CUDAContext {
         dynload::cusolverDnSetStream(cusolver_dn_handle_, RawStream()));
   }
 
+#if defined(PADDLE_WITH_CUSPARSELT)
   void InitCuSparseLtContext() {
     PADDLE_RETRY_CUDA_SUCCESS(dynload::cusparseLtInit(&cusparselt_handle_));
   }
+#endif
 
   void DestoryCuDNNContext() {
     if (cudnn_handle_) {
@@ -288,10 +294,11 @@ class CUDAContext {
           dynload::cusolverDnDestroy(cusolver_dn_handle_));
     }
   }
-
+#if defined(PADDLE_WITH_CUSPARSELT)
   void DestoryCuSparseLtContext() {
     PADDLE_ENFORCE_CUDA_SUCCESS(dynload::cusparseLtDestroy(&cusparselt_handle_));
   }
+#endif
 
   CUDAPlace place_;
   std::unique_ptr<Eigen::GpuDevice> eigen_device_;
@@ -301,7 +308,9 @@ class CUDAContext {
   std::unique_ptr<CublasHandleHolder> cublas_handle_;
   std::unique_ptr<CublasHandleHolder> cublas_tensor_core_handle_;
   std::unique_ptr<CublasHandleHolder> cublas_tf32_tensor_core_handle_;
+#if defined(PADDLE_WITH_CUSPARSELT)
   cusparseLtHandle_t cusparselt_handle_;
+#endif
   cusolverDnHandle_t cusolver_dn_handle_;
   DISABLE_COPY_AND_ASSIGN(CUDAContext);
 };
@@ -365,7 +374,9 @@ class CUDADeviceContext : public DeviceContext {
 
   cusolverDnHandle_t cusolver_dn_handle() const;
 
+#if defined(PADDLE_WITH_CUSPARSELT)
   cusparseLtHandle_t cusparselt_handle() const;
+#endif
 
   /*! \brief  Return cuda stream in the device context. */
   cudaStream_t stream() const;
