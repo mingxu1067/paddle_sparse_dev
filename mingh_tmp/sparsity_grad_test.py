@@ -15,7 +15,7 @@ def main():
         label = fluid.layers.data(
             name='test_label', shape=[None, 4, 32], dtype='float32')
         fc = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
-        fc_sparse = fluid.layers.fc_sparse(input=input_data, num_flatten_dims=-1, size=32, act=None)
+        fc_sparse = sparsity.fc_sparse(input=input_data, num_flatten_dims=-1, size=32, act=None)
         fc_32= fluid.layers.cast(x=fc, dtype="float32")
         fc_sparse_32 = fluid.layers.cast(x=fc_sparse, dtype="float32")
         fc_loss = fluid.layers.mean(fluid.layers.square_error_cost(fc_32, label))
@@ -40,8 +40,6 @@ def main():
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
-    # fcw_array = np.transpose(np.array(fcw_param)).flatten()
-    # pruned_w = np.transpose(sparsity.prune_matrix(fcw_array).reshape((8,32)))
     fcw_array = np.array(fcw_param)
     sparse_mask = sparsity.create_mask(fcw_array)
     pruned_w = np.multiply(fcw_array, sparse_mask)
@@ -71,7 +69,7 @@ def main():
     is_pass = True
     for i in range(8):
         for j in range(4):
-            for k in range(16):
+            for k in range(32):
                 if fc_result[i][j][k] != fc_sparse_result[i][j][k]:
                     is_pass = False
                     print(i, j, "::", fc_result[i][j][k], "-" ,fc_sparse_result[i][j][k])

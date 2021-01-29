@@ -13,7 +13,7 @@ def main():
         input_data = fluid.layers.data(
             name='test_data', shape=[None, 4, 32], dtype='float16')
         fc = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=16, act=None)
-        fc_sparse = fluid.layers.fc_sparse(input=input_data, num_flatten_dims=-1, size=16, act=None)
+        fc_sparse = sparsity.fc_sparse(input=input_data, num_flatten_dims=-1, size=16, act=None)
 
     for param in train_program.global_block().all_parameters():
         print(param.name)
@@ -29,8 +29,6 @@ def main():
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
-    # fcw_array = np.transpose(np.array(fcw_param)).flatten()
-    # pruned_w = np.transpose(sparsity.prune_matrix(fcw_array).reshape((8,32)))
     fcw_array = np.array(fcw_param)
     sparse_mask = sparsity.create_mask(fcw_array)
     pruned_w = np.multiply(fcw_array, sparse_mask)
