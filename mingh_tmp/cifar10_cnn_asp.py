@@ -45,7 +45,7 @@ def test(test_program, test_reader, test_feader, exe, fetch_list):
 
 def main():
     BATCH_SIZE = 128
-    EPOCHS = 180
+    EPOCHS = 60
     SAVE_DIR = "cifar10_cnn_asp_test"
 
     train_prog = fluid.Program()
