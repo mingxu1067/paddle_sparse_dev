@@ -148,7 +148,6 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                             num_streams));
 
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
-    // PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_pruned));
     PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
   }
 };
