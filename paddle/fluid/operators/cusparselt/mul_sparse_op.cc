@@ -174,19 +174,19 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "lda",
-      R"DOC((int, optional), The leading dimension of A (m, k). default is n.
+      R"DOC((int, optional), The leading dimension of A (m, k). default is is_col_major?X.dim[0]:X.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "ldb",
-      R"DOC((int, optional), The leading dimension of B (k, n). default is n.
+      R"DOC((int, optional), The leading dimension of B (k, n). default is is_col_major?Y.dim[0]:Y.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "ldc",
-      R"DOC((int, optional), The leading dimension of C (m, n). default is n.
+      R"DOC((int, optional), The leading dimension of C (m, n). default is is_col_major?C.dim[0]:C.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);

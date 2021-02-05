@@ -60,14 +60,11 @@ class MulSparseKernel : public framework::OpKernel<T> {
     auto order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
 
     bool is_transpose_A = context.Attr<bool>("is_transpose_A");
-    if (is_transpose_A) x_matrix.Resize(x_matrix.dims()[1], x_matrix.dims()[0]);
+    if (is_transpose_A) x_matrix.Resize({x_matrix.dims()[1], x_matrix.dims()[0]});
     bool is_transpose_B = context.Attr<bool>("is_transpose_B");
-    if (is_transpose_B) y_matrix.Resize(y_matrix.dims()[1], y_matrix.dims()[0]);
-
+    if (is_transpose_B) y_matrix.Resize({y_matrix.dims()[1], y_matrix.dims()[0]});
     auto opA   = CUSPARSE_OPERATION_NON_TRANSPOSE;
     auto opB   = CUSPARSE_OPERATION_NON_TRANSPOSE;
-    // auto          opA   = is_transpose_A? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
-    // auto          opB   = is_transpose_B? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
 
     int m = context.Attr<int>("m");
     int n = context.Attr<int>("n");
@@ -79,9 +76,9 @@ class MulSparseKernel : public framework::OpKernel<T> {
     int lda = context.Attr<int>("lda");
     int ldb = context.Attr<int>("ldb");
     int ldc = context.Attr<int>("ldc");
-    lda = lda > 0? lda:x_matrix.dims()[1];
-    ldb = ldb > 0? ldb:y_matrix.dims()[1];
-    ldc = ldc > 0? ldc:z->dims()[1];
+    lda = lda > 0? lda:(is_col_major? x_matrix.dims()[0]:x_matrix.dims()[1]);
+    ldb = ldb > 0? ldb:(is_col_major? y_matrix.dims()[0]:y_matrix.dims()[1]);
+    ldc = ldc > 0? ldc:(is_col_major? z->dims()[0]:z->dims()[1]);
 
     z->mutable_data<T>(context.GetPlace());
 
