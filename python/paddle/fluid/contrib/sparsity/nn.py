@@ -54,11 +54,11 @@ def fc_sparse(input,
                     "y_num_col_dims": 1,
                     "is_col_major": True,
                     "m":param_shape[1],
-                    "n":input_shape[0],
                     "k":param_shape[0],
                     "lda":param_shape[1],
                     "ldb":param_shape[0],
                     "ldc":param_shape[1],
+                    "is_transpose_B": True,
                     "switch_XY": True})
             mul_results.append(tmp)
 

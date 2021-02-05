@@ -57,11 +57,17 @@ class MulSparseKernel : public framework::OpKernel<T> {
     auto type  = CUDA_R_16F;
     auto compute_type = CUSPARSE_COMPUTE_16F;
     bool is_col_major = context.Attr<bool>("is_col_major");
+    auto order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
+
     bool is_transpose_A = context.Attr<bool>("is_transpose_A");
+    if (is_transpose_A) x_matrix.Resize(x_matrix.dims()[1], x_matrix.dims()[0]);
     bool is_transpose_B = context.Attr<bool>("is_transpose_B");
-    auto          order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
-    auto          opA   = is_transpose_A? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
-    auto          opB   = is_transpose_B? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
+    if (is_transpose_B) y_matrix.Resize(y_matrix.dims()[1], y_matrix.dims()[0]);
+
+    auto opA   = CUSPARSE_OPERATION_NON_TRANSPOSE;
+    auto opB   = CUSPARSE_OPERATION_NON_TRANSPOSE;
+    // auto          opA   = is_transpose_A? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
+    // auto          opB   = is_transpose_B? CUSPARSE_OPERATION_TRANSPOSE : CUSPARSE_OPERATION_NON_TRANSPOSE;
 
     int m = context.Attr<int>("m");
     int n = context.Attr<int>("n");
@@ -84,7 +90,6 @@ class MulSparseKernel : public framework::OpKernel<T> {
     cusparseLtMatmulDescriptor_t   matmul;
     cusparseLtMatmulAlgSelection_t alg_sel;
     cusparseLtMatmulPlan_t         plan;
-    cudaStream_t                   stream = nullptr;
 
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtStructuredDescriptorInit(&cusparselt_handle, &matA, m,
@@ -108,7 +113,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                             &cusparselt_handle, &alg_sel, &matmul,
                                             CUSPARSELT_MATMUL_ALG_DEFAULT));
 
-    size_t workspace_size, compressed_size;
+    size_t workspace_size;
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtMatmulGetWorkspace(
                                             &cusparselt_handle, &alg_sel, &workspace_size));
@@ -119,25 +124,9 @@ class MulSparseKernel : public framework::OpKernel<T> {
 
     // TODO: Do only once ---------------------------------------------------------------
     const T* x_data = x_matrix.data<T>();
-    __half *dA_compressed; // *dA_pruned,
-    /*
-    VLOG(0) << "X: " << x_matrix << "\n";
-    VLOG(0) << "Y: " << y_matrix << "\n";
-    PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_pruned, (x_matrix.dims()[0]*x_matrix.dims()[1])) );
-    PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtSpMMAPrune(
-                                            &cusparselt_handle, &matmul, (const __half*)x_data, dA_pruned,
-                                            CUSPARSELT_PRUNE_SPMMA_TILE, stream));
-    int is_valid;
-    PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtSpMMAPruneCheck(
-                                            &cusparselt_handle, &matmul, dA_pruned,
-                                            &is_valid, stream));
-    if (is_valid != 0) {
-        VLOG(0) << "!!!! The matrix has been pruned in a wrong way. " <<
-                    "cusparseLtMatmul will not provided correct results\n";
-    }
-    */
+    __half *dA_compressed;
+    size_t compressed_size;
+    cudaStream_t stream = nullptr;
 
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMACompressedSize(
