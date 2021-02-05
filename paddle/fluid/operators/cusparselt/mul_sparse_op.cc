@@ -17,22 +17,12 @@ class MulSparseOp : public framework::OperatorWithKernel {
     OP_INOUT_CHECK(ctx->HasInput("Y"), "Input", "Y", "MulSparse");
     OP_INOUT_CHECK(ctx->HasOutput("Out"), "Output", "Out", "MulSparse");
 
-    DDim x_dims, y_dims;
-    int x_num_col_dims, y_num_col_dims;
-    bool switch_xy = ctx->Attrs().Get<bool>("switch_XY_inferShape");
-    if (switch_xy) {
-      x_dims = ctx->GetInputDim("Y");
-      y_dims = ctx->GetInputDim("X");
+    DDim x_dims = ctx->GetInputDim("X");
+    DDim y_dims = ctx->GetInputDim("Y");
 
-      x_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
-      y_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
-    } else {
-      x_dims = ctx->GetInputDim("X");
-      y_dims = ctx->GetInputDim("Y");
+    int x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
+    int y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
 
-      x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
-      y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
-    }
 
     VLOG(3) << "mul operator x.shape=" << x_dims << " y.shape=" << y_dims
             << " x_num_col_dims=" << x_num_col_dims
@@ -140,64 +130,62 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         .EqualGreaterThan(1);
     AddAttr<bool>(
         "is_col_major",
-        R"DOC((bool, default False), Is the memory arragement is column-major.
+        R"DOC((bool, default False), To indicate the memory arragement as column-major during computing.
               Set true for col-major, false for row-major.
         )DOC")
         .SetDefault(false);
     AddAttr<bool>(
         "is_transpose_A",
-        R"DOC((bool, default False), Does SPMMA transposes matrix A before computing.
+        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix A during computing.
         )DOC")
         .SetDefault(false);
     AddAttr<bool>(
         "is_transpose_B",
-        R"DOC((bool, default False), Does SPMMA transposes matrix B before computing.
+        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix B during computing.
         )DOC")
         .SetDefault(false);
     AddAttr<int>(
         "m",
-        R"DOC((int, optional), The m dimension of A (m, k) x B (n, k). default is X.dim[0].
+        R"DOC((int, optional), The m dimension of A (m, k) x B (n, k) during computing. default is X.dim[0].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "n",
-        R"DOC((int, optional), The n dimension of A (m, k) x B (n, k). default is Y.dim[1].
+        R"DOC((int, optional), The n dimension of A (m, k) x B (n, k) during computing. default is Y.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "k",
-      R"DOC((int, optional), The k dimension of A (m, k) x B (n, k). default is X.dim[1].
+      R"DOC((int, optional), The k dimension of A (m, k) x B (n, k) during computing. default is X.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "lda",
-      R"DOC((int, optional), The leading dimension of A (m, k). default is is_col_major?X.dim[0]:X.dim[1].
+      R"DOC((int, optional), The leading dimension of A (m, k) during computing.
+            default is is_col_major?X.dim[0]:X.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "ldb",
-      R"DOC((int, optional), The leading dimension of B (k, n). default is is_col_major?Y.dim[0]:Y.dim[1].
+      R"DOC((int, optional), The leading dimension of B (k, n) during computing.
+            default is is_col_major?Y.dim[0]:Y.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "ldc",
-      R"DOC((int, optional), The leading dimension of C (m, n). default is is_col_major?C.dim[0]:C.dim[1].
+      R"DOC((int, optional), The leading dimension of C (m, n) during computing.
+            default is is_col_major?C.dim[0]:C.dim[1].
         )DOC")
         .SetDefault(-1)
         .EqualGreaterThan(-1);
     AddAttr<bool>(
         "switch_XY",
-      R"DOC((bool, optional), Let X <- input Y, Y <- input X.
-        )DOC")
-        .SetDefault(false);
-    AddAttr<bool>(
-        "switch_XY_inferShape",
-      R"DOC((bool, optional), Let X <- input Y, Y <- input X dufing inferShape.
+      R"DOC((bool, optional), Let X <- input Y, Y <- input X during computing.
         )DOC")
         .SetDefault(false);
     AddComment(R"DOC(
