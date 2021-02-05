@@ -8,7 +8,7 @@ __all__ = ['ASPHelper']
 class ASPHelper(object):
 
     MASKE_APPENDDED_NAME = '_asp_mask'
-    SUPPORTED_LAYERS = {'fc':'w_0', 'conv2d':'w_0'}
+    SUPPORTED_LAYERS = {'fc':'w_0', 'linear':'w_0', 'conv2d':'w_0'}
 
     __mask_vars = {}
     __masks = {}
