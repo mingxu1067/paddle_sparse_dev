@@ -55,6 +55,8 @@ class ASPHelper(object):
 
     @classmethod
     def prune_model(cls, main_program, start_program, place, func_name="get_mask_2d_greedy", with_mask=True):
+        checked_func_name = "check_mask_1d" if '1d' in func_name else "check_mask_2d"
+
         for param in main_program.global_block().all_parameters():
             if ASPHelper.is_supported_layer(param.name) and \
                ASPHelper.MASKE_APPENDDED_NAME not in param.name:
@@ -63,7 +65,7 @@ class ASPHelper(object):
                 weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
                 weight_pruned_tensor = np.multiply(weight_tensor, weight_sparse_mask)
                 weight_param.set(weight_pruned_tensor, place)
-                assert sparsity.check_sparsity(weight_pruned_tensor, m=4, n=2), \
+                assert sparsity.check_sparsity(weight_pruned_tensor, m=4, n=2, func_name=checked_func_name), \
                         "Pruning {} weight matrix failure!!!".format(param.name)
                 if with_mask:
                     weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()

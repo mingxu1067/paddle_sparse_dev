@@ -17,13 +17,17 @@ def reshape_1d(mat, m):
     if mat.shape[1] % m > 0:
         mat_padded = np.zeros((mat.shape[0], mat.shape[1]+(m-remainder)))
         mat_padded[:, :mat.shape[1]] = mat
-        shape = mat.mat_padded
+        shape = mat_padded.shape
         return mat_padded.reshape(-1, m), shape
     else:
         return mat.reshape(-1, m), mat.shape
 
 def check_mask_1d(mat, m, n):
-    mat_flattern = mat.reshape(-1)
+    if len(mat.shape) <= 1:
+        mat_flattern, shape = reshape_1d(mat.reshape(1, mat.shape[0]), m)
+    else:
+        mat_flattern, shape = reshape_1d(mat, m)
+
     for sub_mat in mat_flattern:
         if np.nonzero(sub_mat)[0].size > n:
             return False
@@ -32,12 +36,15 @@ def check_mask_1d(mat, m, n):
 def get_mask_1d_greedy(mat, m, n):
     mat_flattern, shape = reshape_1d(mat, m)
 
-    mask = np.ones_like(mat_flattern)
+    mask_flattern = np.ones_like(mat_flattern)
+    mask = np.ones_like(mat)
     for i in range(mat_flattern.shape[0]):
         sub_mat = mat_flattern[i]
         min_order_indices = np.argsort(np.absolute(sub_mat))
-        mask[i, min_order_indices[:n].tolist()] = 0
-    return mask.reshape(shape)
+        mask_flattern[i, min_order_indices[:n].tolist()] = 0
+    mask_flattern = mask_flattern.reshape(shape)
+    mask[:, :] = mask_flattern[:, :mat.shape[1]]
+    return mask
 
 def check_mask_2d(mat, m, n):
     row_count = int(mat.shape[0]/m) * m
@@ -143,13 +150,19 @@ if __name__ == "__main__":
     print("Checking non_pruned X_1D:", check_mask_1d(x_2d, 4, 2))
     print("Checking pruned X_1D:", check_mask_1d(x_pruned, 4, 2))
 
+    x_not_in_4 = np.random.randint(5, size=(11, 11))
+    mask = get_mask_1d_greedy(x_not_in_4, 4, 2)
+    x_pruned = np.multiply(x_not_in_4, mask)
+    print("Checking non_pruned X_1D:", check_mask_1d(x_not_in_4, 4, 2))
+    print("Checking pruned X_1D:", check_mask_1d(x_pruned, 4, 2))
+
     mask_2d = get_mask_2d_greedy(x_2d, 4, 2)
     x_2d_pruned = np.multiply(x_2d, mask_2d)
     check_mask_2d(x_2d_pruned, 4, 2)
     print("Checking non_pruned X_2D:", check_mask_2d(x_2d.transpose(), 4, 2))
     print("Checking pruned X_2D:", check_mask_2d(x_2d_pruned, 4, 2))
 
-    created_mask_1d = create_mask(x)
+    created_mask_1d = create_mask(x, func_name="get_mask_1d_greedy")
     created_mask_2d = create_mask(x_2d, func_name="get_mask_2d_greedy")
     print("Checking created_mask 1D:", check_mask_1d(created_mask_1d, 4, 2))
     print("Checking created_mask 2D:", check_mask_2d(created_mask_2d, 4, 2))
