@@ -29,7 +29,7 @@ class MulSparseOpRelacementInfo(OpRelacementInfo):
                 source_data_input_name='X', source_data_idx=0):
 
         param_shape_related_attrs = {'m':1, 'k':0, 'lda':1, 'ldb':0, 'ldc':1}
-        constant_attrs={'is_col_major':True, 'is_transpose_B':True, 'switch_XY':True}
+        constant_attrs={'is_col_major':True, 'is_transpose_Y':True, 'switch_XY':True}
 
         super(MulSparseOpRelacementInfo, self).__init__(
             source_type=source_type, target_type='mul_sparse',

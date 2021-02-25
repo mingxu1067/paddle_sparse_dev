@@ -135,13 +135,13 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         )DOC")
         .SetDefault(false);
     AddAttr<bool>(
-        "is_transpose_A",
-        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix A during computing.
+        "is_transpose_X",
+        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix X during computing.
         )DOC")
         .SetDefault(false);
     AddAttr<bool>(
-        "is_transpose_B",
-        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix B during computing.
+        "is_transpose_Y",
+        R"DOC((bool, default False), To indicate if SPMMA needs to transpose matrix Y during computing.
         )DOC")
         .SetDefault(false);
     AddAttr<int>(
@@ -178,7 +178,7 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         .EqualGreaterThan(-1);
     AddAttr<int>(
         "ldc",
-      R"DOC((int, optional), The leading dimension of C (m, n) during computing.
+      R"DOC((int, optional), The leading dimension of C (m, n) = A (m, k) x B (n, k) during computing.
             default is is_col_major?C.dim[0]:C.dim[1].
         )DOC")
         .SetDefault(-1)

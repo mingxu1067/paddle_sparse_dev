@@ -59,10 +59,10 @@ class MulSparseKernel : public framework::OpKernel<T> {
     bool is_col_major = context.Attr<bool>("is_col_major");
     auto order = is_col_major? CUSPARSE_ORDER_COL : CUSPARSE_ORDER_ROW;
 
-    bool is_transpose_A = context.Attr<bool>("is_transpose_A");
-    if (is_transpose_A) x_matrix.Resize({x_matrix.dims()[1], x_matrix.dims()[0]});
-    bool is_transpose_B = context.Attr<bool>("is_transpose_B");
-    if (is_transpose_B) y_matrix.Resize({y_matrix.dims()[1], y_matrix.dims()[0]});
+    bool is_transpose_X = context.Attr<bool>("is_transpose_X");
+    if (is_transpose_X) x_matrix.Resize({x_matrix.dims()[1], x_matrix.dims()[0]});
+    bool is_transpose_Y = context.Attr<bool>("is_transpose_Y");
+    if (is_transpose_Y) y_matrix.Resize({y_matrix.dims()[1], y_matrix.dims()[0]});
     auto opA   = CUSPARSE_OPERATION_NON_TRANSPOSE;
     auto opB   = CUSPARSE_OPERATION_NON_TRANSPOSE;
 

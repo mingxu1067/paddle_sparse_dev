@@ -58,7 +58,7 @@ def fc_sparse(input,
                     "lda":param_shape[1],
                     "ldb":param_shape[0],
                     "ldc":param_shape[1],
-                    "is_transpose_B": True,
+                    "is_transpose_Y": True,
                     "switch_XY": True})
             mul_results.append(tmp)
 
