@@ -13,6 +13,7 @@ def fc_sparse(input,
        param_attr=None,
        bias_attr=None,
        act=None,
+       enable_cache=False,
        name=None):
     helper = LayerHelper("fc", **locals())
     check_type(input, 'input', (list, tuple, Variable), 'fc_sparse')
@@ -45,22 +46,24 @@ def fc_sparse(input,
                     "y_num_col_dims": 1})
             mul_results.append(tmp)
         else:
+            layer_attr = {"x_num_col_dims": num_flatten_dims,
+                          "y_num_col_dims": 1,
+                          "is_col_major": True,
+                          "m":param_shape[1],
+                          "k":param_shape[0],
+                          "lda":param_shape[1],
+                          "ldb":param_shape[0],
+                          "ldc":param_shape[1],
+                          "is_transpose_Y": True,
+                          "switch_XY": True}
+            if enable_cache:
+                layer_attr["param_name"]=w.name
             helper.append_op(
                 type="mul_sparse",
                 inputs={"X": input_var,
                         "Y": w},
                 outputs={"Out": tmp},
-                attrs={"x_num_col_dims": num_flatten_dims,
-                    "y_num_col_dims": 1,
-                    "is_col_major": True,
-                    "m":param_shape[1],
-                    "k":param_shape[0],
-                    "lda":param_shape[1],
-                    "ldb":param_shape[0],
-                    "ldc":param_shape[1],
-                    "is_transpose_Y": True,
-                    "switch_XY": True,
-                    "param_name":w.name})
+                attrs=layer_attr)
             mul_results.append(tmp)
 
     if len(mul_results) == 1:
