@@ -188,6 +188,10 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
       R"DOC((bool, optional), Let X <- input Y, Y <- input X during computing.
         )DOC")
         .SetDefault(false);
+    AddAttr<std::string>(
+        "param_name", 
+        "")
+        .SetDefault("");
     AddComment(R"DOC(
 MulSparse Operator.
 This operator is used to perform sparse matrix multiplication for input $X$ and $Y$.

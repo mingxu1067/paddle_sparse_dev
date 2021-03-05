@@ -6,6 +6,8 @@
 #include "paddle/fluid/framework/operator.h"
 #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/operators/math/math_function.h"
+#include "paddle/fluid/operators/cusparselt/mul_sparse_matrix_cache.h"
+#include <string>
 
 namespace paddle {
 namespace operators {
@@ -120,18 +122,35 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                             &alg_sel, workspace_size));
 
     // TODO: Do only once ---------------------------------------------------------------
-    const T* x_data = x_matrix.data<T>();
-    __half *dA_compressed;
-    size_t compressed_size;
-    cudaStream_t stream = nullptr;
+    std::string param_name = context.Attr<std::string>("param_name");
+    SparseMatrixCache<__half>& matrix_cache =
+          *(operators::CompressedMatrixCache::Instance().GetMap());
 
-    PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtSpMMACompressedSize(
-                                            &cusparselt_handle, &plan, &compressed_size));
-    PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_compressed, compressed_size));
-    PADDLE_ENFORCE_CUDA_SUCCESS(
-        platform::dynload::cusparseLtSpMMACompress(
-                                            &cusparselt_handle, &plan, x_data, dA_compressed, stream));
+    const T* x_data = x_matrix.data<T>();
+    __half *dA_compressed = matrix_cache.GetMatrix(param_name, [&]() {
+                            size_t compressed_size;
+                            cudaStream_t stream = nullptr;
+                            __half *dA_compressed;
+                            PADDLE_ENFORCE_CUDA_SUCCESS(
+                                platform::dynload::cusparseLtSpMMACompressedSize(
+                                                    &cusparselt_handle, &plan, &compressed_size));
+                            PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_compressed, compressed_size));
+                            PADDLE_ENFORCE_CUDA_SUCCESS(
+                                platform::dynload::cusparseLtSpMMACompress(
+                                                    &cusparselt_handle, &plan, x_data, dA_compressed, stream));
+                            return dA_compressed;
+                          });
+    // __half *dA_compressed;
+    // size_t compressed_size;
+    // cudaStream_t stream = nullptr;
+
+    // PADDLE_ENFORCE_CUDA_SUCCESS(
+    //     platform::dynload::cusparseLtSpMMACompressedSize(
+    //                                         &cusparselt_handle, &plan, &compressed_size));
+    // PADDLE_ENFORCE_CUDA_SUCCESS( cudaMalloc((void**) &dA_compressed, compressed_size));
+    // PADDLE_ENFORCE_CUDA_SUCCESS(
+    //     platform::dynload::cusparseLtSpMMACompress(
+    //                                         &cusparselt_handle, &plan, x_data, dA_compressed, stream));
     // --------------------------------------------------------------------------
 
     void*         d_workspace = nullptr;
@@ -148,7 +167,7 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                             num_streams));
 
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
-    PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
+    // PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
   }
 };
 

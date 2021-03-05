@@ -45,16 +45,17 @@ def main():
     fcb_array = np.array(fcb_param)
     fcsb_param.set(fcb_array, place)
 
-    data = np.random.randint(9, size=(8, 4, 32))
-    fc_result, fc_sparse_result = exe.run(
-        train_program, feed=feeder.feed([(data,)]), fetch_list=[fc, fc_sparse])
-    print(fc_result.shape, fc_sparse_result.shape)
+    for _ in range(20):
+        data = np.random.randint(9, size=(8, 4, 32))
+        fc_result, fc_sparse_result = exe.run(
+            train_program, feed=feeder.feed([(data,)]), fetch_list=[fc, fc_sparse])
+        print(fc_result.shape, fc_sparse_result.shape)
 
-    for i in range(8):
-        for j in range(4):
-            for k in range(16):
-                if fc_result[i][j][k] != fc_sparse_result[i][j][k]:
-                    print(i, j, "::", fc_result[i][j][k], "-" ,fc_sparse_result[i][j][k])
+        for i in range(8):
+            for j in range(4):
+                for k in range(16):
+                    if fc_result[i][j][k] != fc_sparse_result[i][j][k]:
+                        print(i, j, "::", fc_result[i][j][k], "-" ,fc_sparse_result[i][j][k])
 
 if __name__ == "__main__":
     main()
