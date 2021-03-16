@@ -4,6 +4,7 @@ import sys
 import math
 import collections
 import numpy as np
+from itertools import permutations
 
 __all__ = ['density', 'reshape_1d', 'check_mask_1d', 'get_mask_1d_greedy',
            'check_mask_2d', 'get_mask_2d_greedy', 'create_mask', 'check_sparsity']
@@ -45,6 +46,50 @@ def get_mask_1d_greedy(mat, m, n):
     mask_flattern = mask_flattern.reshape(shape)
     mask[:, :] = mask_flattern[:, :mat.shape[1]]
     return mask
+
+valid_1d_patterns = {}
+def compute_valid_1d_patterns(m, n):
+    global valid_1d_patterns
+
+    valid_key = '{}_{}'.format(m, n)
+    if valid_key in valid_1d_patterns:
+        return valid_1d_patterns[valid_key]
+    else:
+        patterns = np.zeros(m)
+        patterns[:n] = 1
+        valid_patterns = np.asarray(list(set(permutations(patterns.tolist()))))
+        valid_1d_patterns[valid_key] = valid_patterns
+        return valid_patterns
+
+def get_mask_1d_best(mat, m, n):
+    patterns = compute_valid_1d_patterns(m, n)
+
+    mat_flattern, shape = reshape_1d(mat, m)
+    mask_flattern = np.ones_like(mat_flattern)
+    pmax = np.argmax(np.matmul(np.abs(mat_flattern), patterns.T), axis=1)
+    mask_flattern[:] = patterns[pmax[:]]
+    mask = mask_flattern.reshape(mat.shape)
+    return mask
+
+def reshape_2d(mat, m):
+    remainder_0 = mat.shape[0] % m
+    remainder_1 = mat.shape[1] % m
+
+    new_shape = (mat.shape[0] if remainder_0 == 0 else mat.shape[0]+(m-remainder_0),
+                 mat.shape[1] if remainder_1 == 0 else mat.shape[1]+(m-remainder_1))
+    mat_padded = np.zeros(new_shape)
+    mat_padded[:mat.shape[0], :mat.shape[1]] = mat
+
+    mat_flattern = np.empty(new_shape).reshape(-1, m*m)
+    curr_idx = 0
+    for row_start in range(0, mat_padded.shape[0], m):
+        row_end = row_start + m
+        for col_start in range(0, mat_padded.shape[1], m):
+            col_end = col_start + m
+            sub_mat = np.squeeze(mat_padded[row_start:row_end, col_start:col_end].reshape(-1))
+            mat_flattern[curr_idx] = sub_mat
+            curr_idx += 1
+    return mat_flattern, mat_padded.shape
 
 def check_mask_2d(mat, m, n):
     row_count = int(mat.shape[0]/m) * m
@@ -90,6 +135,45 @@ def get_mask_2d_greedy(mat, m, n):
                 row_counter[matrix_entry[0]] += 1
                 col_counter[matrix_entry[1]] += 1
     return mask
+
+valid_2d_patterns = {}
+def compute_valid_2d_patterns(m,n):
+    global valid_2d_patterns
+
+    valid_key = '{}_{}'.format(m, n)
+    if valid_key in valid_2d_patterns:
+        return valid_2d_patterns[valid_key]
+    else:
+        patterns = np.zeros(m)
+        patterns[:n] = 1
+        patterns = list(set(permutations(patterns.tolist())))
+        patterns = patterns + patterns
+        patterns = np.asarray(list(set(permutations(patterns, m))))
+
+        valid = ((patterns.sum(axis=1) <= n).sum(axis=1) == m).nonzero()[0].reshape(-1)
+        valid_patterns = np.empty((valid.shape[0], m, m))
+        valid_patterns[:] = patterns[valid[:]]
+        valid_2d_patterns[valid_key] = valid_patterns
+        return valid_patterns
+
+def get_mask_2d_best(mat, m, n):
+    patterns = compute_valid_2d_patterns(m, n)
+
+    mat_flattern, shape = reshape_2d(mat, m)
+    mask_flattern = np.ones_like(mat_flattern).reshape(-1, m, m)
+    pmax = np.argmax(np.matmul(mat_flattern, patterns.reshape(patterns.shape[0],m*m).T), axis=1)
+
+    mask_flattern[:] = patterns[pmax[:]]
+    mask = np.empty(shape)
+
+    curr_idx = 0
+    for row_start in range(0, shape[0], m):
+        row_end = row_start + m
+        for col_start in range(0, shape[1], m):
+            col_end = col_start + m
+            mask[row_start:row_end, col_start:col_end] = mask_flattern[curr_idx]
+            curr_idx += 1
+    return mask[:mat.shape[0], :mat.shape[1]]
 
 def create_mask(tensor, func_name="get_mask_2d_greedy", m=4, n=2):
     shape = tensor.shape
@@ -150,6 +234,11 @@ if __name__ == "__main__":
     print("Checking non_pruned X_1D:", check_mask_1d(x_2d, 4, 2))
     print("Checking pruned X_1D:", check_mask_1d(x_pruned, 4, 2))
 
+    mask = get_mask_1d_best(x_2d, 4, 2)
+    x_pruned = np.multiply(x_2d, mask)
+    print("Checking non_pruned X_1D:", check_mask_1d(x_2d, 4, 2))
+    print("Checking pruned X_1D (BEST):", check_mask_1d(x_pruned, 4, 2))
+
     x_not_in_4 = np.random.randint(5, size=(11, 11))
     mask = get_mask_1d_greedy(x_not_in_4, 4, 2)
     x_pruned = np.multiply(x_not_in_4, mask)
@@ -162,8 +251,38 @@ if __name__ == "__main__":
     print("Checking non_pruned X_2D:", check_mask_2d(x_2d.transpose(), 4, 2))
     print("Checking pruned X_2D:", check_mask_2d(x_2d_pruned, 4, 2))
 
+    mask_2d = get_mask_2d_best(x_2d, 4, 2)
+    x_2d_pruned = np.multiply(x_2d, mask_2d)
+    check_mask_2d(x_2d_pruned, 4, 2)
+    print("Checking non_pruned X_2D:", check_mask_2d(x_2d.transpose(), 4, 2))
+    print("Checking pruned X_2D (BEST):", check_mask_2d(x_2d_pruned, 4, 2))
+
     created_mask_1d = create_mask(x, func_name="get_mask_1d_greedy")
     created_mask_2d = create_mask(x_2d, func_name="get_mask_2d_greedy")
     print("Checking created_mask 1D:", check_mask_1d(created_mask_1d, 4, 2))
     print("Checking created_mask 2D:", check_mask_2d(created_mask_2d, 4, 2))
+
+    pass_verification = True
+    for i in range(30):
+        x_2d = np.random.rand(16, 16)
+        mask_greedy = get_mask_1d_greedy(x_2d, 4, 2)
+        mask_best = get_mask_1d_best(x_2d, 4, 2)
+        if (mask_best == mask_greedy).all() == False:
+            print(i, "Mask1D greedy != best")
+            pass_verification = False
+
+        mask2d_greedy = get_mask_2d_greedy(x_2d, 4, 2)
+        mask2d_best = get_mask_2d_best(x_2d, 4, 2)
+        x_pruned_greedy = np.multiply(x_2d, mask2d_greedy)
+        x_pruned_best = np.multiply(x_2d, mask2d_best)
+        if (x_pruned_best.sum() < x_pruned_greedy.sum()):
+            print(i, "Mask2D greedy > best")
+            pass_verification = False
+
+        if not check_mask_1d(mask_best, 4, 2):
+            print(i, "1D best donot pass checking!")
+        if not check_mask_2d(mask2d_best, 4, 2):
+            print(i, "2D best donot pass checking!")
+    print("Best masking checking:", pass_verification)
+
 
