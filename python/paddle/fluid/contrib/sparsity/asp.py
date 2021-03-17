@@ -151,7 +151,17 @@ class ASPHelper(object):
                 )
 
     @classmethod
-    def replace_dense_to_sparse_op(cls, main_program):
+    def compress_model(cls, main_program, batch_size, place):
+        for param in main_program.global_block().all_parameters():
+            if ASPHelper.is_supported_layer(param.name) and \
+               ASPHelper.MASKE_APPENDDED_NAME not in param.name:
+                shape = param.shape
+                param_tensor = global_scope().find_var(param.name).get_tensor()
+                core.compress_parameter(place, param_tensor, shape[1], batch_size, shape[0],
+                                        shape[1], shape[0], shape[1], True)
+
+    @classmethod
+    def replace_dense_to_sparse_op(cls, main_program, is_compressed=False):
         block = main_program.global_block()
         for op in block.ops:
             replacement_info = ASPHelper.DENSE_SPARSE_OP_MAP.get(op.type, None)
@@ -164,6 +174,7 @@ class ASPHelper(object):
                    (param is not None):
                     op.desc.set_type(replacement_info.target_type)
                     op._set_attr("param_name", param.name)
+                    op._set_attr("is_X_compressed", is_compressed)
                     for key, val in replacement_info.param_shape_related_attrs.items():
                        op._set_attr(key, param.shape[val])
                     for key, val in replacement_info.constant_attrs.items():
