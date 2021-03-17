@@ -108,6 +108,10 @@ if(WITH_GPU)
     target_link_libraries(device_context cuda_resource_pool)
 endif()
 
+if (WITH_GPU AND CUSPARSELT_FOUND)
+  cc_library(cusparselt_helper SRCS cusparselt_helper.cc)
+endif()
+
 nv_test(device_context_test SRCS device_context_test.cu DEPS device_context gpu_info)
 
 cc_test(init_test SRCS init_test.cc DEPS device_context)

@@ -65,6 +65,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/monitor.h"
 #include "paddle/fluid/platform/place.h"
 #include "paddle/fluid/platform/profiler.h"
+#include "paddle/fluid/platform/cusparselt_helper.h"
 #include "paddle/fluid/pybind/box_helper_py.h"
 #include "paddle/fluid/pybind/compatible.h"
 #include "paddle/fluid/pybind/const_value.h"
@@ -1989,6 +1990,10 @@ All parameter, weight, gradient are variables in Paddle.
   m.def("set_cublas_switch", platform::SetAllowTF32Cublas);
   m.def("get_cublas_switch", platform::AllowTF32Cublas);
 #endif  // PADDLE_WITH_CUDA
+
+#if defined(PADDLE_WITH_CUSPARSELT)
+  m.def("compress_parameter", paddle::platform::CompressParameter);
+#endif
 
   using VarQuantScale =
       std::unordered_map<std::string, std::pair<bool, LoDTensor>>;
