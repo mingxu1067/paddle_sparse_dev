@@ -188,6 +188,11 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
       R"DOC((bool, optional), Let X <- input Y, Y <- input X during computing.
         )DOC")
         .SetDefault(false);
+    AddAttr<bool>(
+        "is_X_compressed",
+      R"DOC((bool, optional), X is compressed? if switch_XY == True, then it means y is compressed.
+        )DOC")
+        .SetDefault(false);
     AddAttr<std::string>(
         "param_name", 
         "")

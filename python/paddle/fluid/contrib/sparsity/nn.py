@@ -14,6 +14,7 @@ def fc_sparse(input,
        bias_attr=None,
        act=None,
        enable_cache=False,
+       is_param_compressed=False,
        name=None):
     helper = LayerHelper("fc", **locals())
     check_type(input, 'input', (list, tuple, Variable), 'fc_sparse')
@@ -55,6 +56,7 @@ def fc_sparse(input,
                           "ldb":param_shape[0],
                           "ldc":param_shape[1],
                           "is_transpose_Y": True,
+                          "is_X_compressed":is_param_compressed,
                           "switch_XY": True}
             if enable_cache:
                 layer_attr["param_name"]=w.name

@@ -1,14 +1,17 @@
 #include <cuda_runtime_api.h>
 #include "paddle/fluid/platform/float16.h"
+#include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/cusparselt_helper.h"
 
 namespace paddle {
 namespace platform {
-Tensor CompressParameter(const platform::CUDADeviceContext& dev_ctx, Tensor param,
+void CompressParameter(const platform::CUDAPlace &place, Tensor& param,
                          int m, int n, int k, int lda, int ldb, int ldc,
                          bool is_col_major) {
 
-    cusparseLtHandle_t cusparselt_handle = dev_ctx.cusparselt_handle();
+    platform::CUDADeviceContext* dev_ctx = dynamic_cast<platform::CUDADeviceContext*>(
+                                                        platform::DeviceContextPool::Instance().Get(place));
+    cusparseLtHandle_t cusparselt_handle = dev_ctx->cusparselt_handle();
     cusparseLtMatDescriptor_t      matA, matB, matC;
     cusparseLtMatmulDescriptor_t   matmul;
     cusparseLtMatmulAlgSelection_t alg_sel;
@@ -60,23 +63,32 @@ Tensor CompressParameter(const platform::CUDADeviceContext& dev_ctx, Tensor para
     platform::dynload::cusparseLtSpMMACompressedSize(
                                             &cusparselt_handle, &plan, &compressed_size));
 
-    auto tmp_allocation_ptr = memory::Alloc(dev_ctx, compressed_size);
-    auto& deleter = tmp_allocation_ptr.get_deleter();
-    auto* allocation_ptr = tmp_allocation_ptr.release();
-    auto shared_allocation = std::shared_ptr<memory::allocation::Allocation>(
-                            allocation_ptr, deleter);
-
-    Tensor temp_tensor(framework::proto::VarType::FP16);
-    temp_tensor.Resize(param.dims());
-    temp_tensor.ResetHolder(std::move(shared_allocation));
-
-    const auto* x_data = param.data<float16>();
-    auto* x_data_compressed = temp_tensor.data<float16>();
+    auto* x_data = param.data<float16>();
+    auto tmp_allocation_ptr = memory::Alloc(*dev_ctx, compressed_size);
+    __half* x_data_compressed = static_cast<__half*>(tmp_allocation_ptr->ptr());
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMACompress(
-                                            &cusparselt_handle, &plan, x_data, x_data_compressed, stream));
+                                &cusparselt_handle, &plan, x_data, x_data_compressed, stream));
+    PADDLE_ENFORCE_CUDA_SUCCESS(
+        cudaMemcpy(x_data, x_data_compressed, compressed_size, cudaMemcpyDeviceToDevice));
 
-    return temp_tensor;
+
+
+    // auto& deleter = tmp_allocation_ptr.get_deleter();
+    // auto* allocation_ptr = tmp_allocation_ptr.release();
+    // auto shared_allocation = std::shared_ptr<memory::allocation::Allocation>(
+    //                         allocation_ptr, deleter);
+
+    // Tensor temp_tensor(framework::proto::VarType::FP16);
+    // temp_tensor.Resize(param.dims());
+    // temp_tensor.ResetHolder(std::move(shared_allocation));
+
+    // const auto* x_data = param.data<float16>();
+    // auto* x_data_compressed = temp_tensor.data<float16>();
+    // PADDLE_ENFORCE_CUDA_SUCCESS(
+    //     platform::dynload::cusparseLtSpMMACompress(
+    //                                         &cusparselt_handle, &plan, x_data, x_data_compressed, stream));
+    // return temp_tensor;
 }
 
 }
