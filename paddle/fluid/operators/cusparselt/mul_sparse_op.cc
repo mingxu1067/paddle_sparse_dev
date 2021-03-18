@@ -189,8 +189,8 @@ class MulSparseOpMaker : public framework::OpProtoAndCheckerMaker {
         )DOC")
         .SetDefault(false);
     AddAttr<bool>(
-        "is_X_compressed",
-      R"DOC((bool, optional), X is compressed? if switch_XY == True, then it means y is compressed.
+        "is_sparse_compressed",
+      R"DOC((bool, optional), Is sparse input (X) compressed? if switch_XY == True, then it means Y is compressed.
         )DOC")
         .SetDefault(false);
     AddAttr<std::string>(

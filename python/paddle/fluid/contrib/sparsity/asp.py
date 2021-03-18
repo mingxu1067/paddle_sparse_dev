@@ -173,8 +173,9 @@ class ASPHelper(object):
                 if (ASPHelper.is_supported_layer(param_name)) and \
                    (param is not None):
                     op.desc.set_type(replacement_info.target_type)
+                    # TODO Need to be more general for future sparse conv ops.
                     op._set_attr("param_name", param.name)
-                    op._set_attr("is_X_compressed", is_compressed)
+                    op._set_attr("is_sparse_compressed", is_compressed)
                     for key, val in replacement_info.param_shape_related_attrs.items():
                        op._set_attr(key, param.shape[val])
                     for key, val in replacement_info.constant_attrs.items():

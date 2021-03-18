@@ -131,8 +131,8 @@ class MulSparseKernel : public framework::OpKernel<T> {
     const T* y_data = y_matrix.data<T>();
     T* output_data = z->data<T>();
 
-    bool is_X_compressed = context.Attr<bool>("is_X_compressed");
-    if (is_X_compressed) {
+    bool is_sparse_compressed = context.Attr<bool>("is_sparse_compressed");
+    if (is_sparse_compressed) {
       PADDLE_ENFORCE_CUDA_SUCCESS(
           platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, x_data, y_data,
                                               &beta, output_data, output_data, d_workspace, streams,
