@@ -92,49 +92,45 @@ def reshape_2d(mat, m):
     return mat_flattern, mat_padded.shape
 
 def check_mask_2d(mat, m, n):
-    row_count = int(mat.shape[0]/m) * m
-    col_count = int(mat.shape[1]/m) * m
-
-    for row_start in range(0, row_count, m):
-        row_end = row_start + m
-        for col_start in range(0, col_count, m):
-            col_end = col_start + m
-
-            sub_mask = np.absolute(np.squeeze(mat[row_start:row_end, col_start:col_end])) >0
-            if (np.sum(np.sum(sub_mask, axis=1) > n) != 0) and \
-               (np.sum(np.sum(sub_mask, axis=0) > n) != 0):
-               return False
+    mat_padded, shape = reshape_2d(mat, m)
+    for sub_mat in mat_padded:
+        sub_mask = np.absolute(np.squeeze(sub_mat.reshape(m, m))) > 0
+        if (np.sum(np.sum(sub_mask, axis=1) > n) != 0) and \
+            (np.sum(np.sum(sub_mask, axis=0) > n) != 0):
+            return False
     return True
 
 def get_mask_2d_greedy(mat, m, n):
-    mask = np.ones_like(mat)
+    mat_padded, shape = reshape_2d(mat, m)
+    mask_padded = np.zeros_like(mat_padded).reshape(-1, m, m)
 
-    row_count = int(mat.shape[0]/m) * m
-    col_count = int(mat.shape[1]/m) * m
+    for idx in range(len(mat_padded)):
+        sub_mat = np.absolute(np.squeeze(mat_padded[idx]))
+        sub_mask = np.squeeze(mask_padded[idx])
 
-    for row_start in range(0, row_count, m):
+        min_order_1d_indices = np.argsort(sub_mat)
+        min_order_2d_indices = [(int(x/m), x % m) for x in min_order_1d_indices]
+        row_counter = collections.Counter()
+        col_counter = collections.Counter()
+
+        for i in range(len(min_order_1d_indices) - 1, -1, -1):
+            matrix_entry = min_order_2d_indices[i]
+            if (row_counter[matrix_entry[0]] == n) or (col_counter[matrix_entry[1]] == n):
+                continue
+
+            sub_mask[matrix_entry[0], matrix_entry[1]] = 1.0
+            row_counter[matrix_entry[0]] += 1
+            col_counter[matrix_entry[1]] += 1
+
+    mask = np.empty(shape)
+    curr_idx = 0
+    for row_start in range(0, shape[0], m):
         row_end = row_start + m
-        for col_start in range(0, col_count, m):
+        for col_start in range(0, shape[1], m):
             col_end = col_start + m
-            sub_mat = np.absolute(np.squeeze(mat[row_start:row_end, col_start:col_end]))
-            sub_mask = np.squeeze(mask[row_start:row_end, col_start:col_end]) 
-            sub_mask.fill(0.0)
-
-            sub_mat_flatten = sub_mat.reshape(-1)
-            min_order_1d_indices = np.argsort(sub_mat_flatten)
-            min_order_2d_indices = [(int(x/m), x % m) for x in min_order_1d_indices]
-            row_counter = collections.Counter()
-            col_counter = collections.Counter()
-
-            for i in range(len(min_order_1d_indices) - 1, -1, -1):
-                matrix_entry = min_order_2d_indices[i]
-                if (row_counter[matrix_entry[0]] == n) or (col_counter[matrix_entry[1]] == n):
-                    continue
-
-                sub_mask[matrix_entry[0], matrix_entry[1]] = 1.0
-                row_counter[matrix_entry[0]] += 1
-                col_counter[matrix_entry[1]] += 1
-    return mask
+            mask[row_start:row_end, col_start:col_end] = mask_padded[curr_idx]
+            curr_idx += 1
+    return mask[:mat.shape[0], :mat.shape[1]]
 
 valid_2d_patterns = {}
 def compute_valid_2d_patterns(m,n):
@@ -175,7 +171,7 @@ def get_mask_2d_best(mat, m, n):
             curr_idx += 1
     return mask[:mat.shape[0], :mat.shape[1]]
 
-def create_mask(tensor, func_name="get_mask_2d_greedy", m=4, n=2):
+def create_mask(tensor, func_name="get_mask_1d_greedy", m=4, n=2):
     shape = tensor.shape
     ttype = tensor.dtype
     t = tensor.astype(float)
@@ -228,6 +224,10 @@ if __name__ == "__main__":
 
     print("Density of X: ", "density: {:.2f}".format(density(x)*100))
     print("Density of X_ref: ", "density: {:.2f}".format(density(x_ref)*100))
+
+    a = np.arange(9).reshape(3, 3)
+    print(check_mask_2d(a, 4, 2))
+    print(get_mask_2d_greedy(a, 4, 2))
 
     mask = get_mask_1d_greedy(x_2d, 4, 2)
     x_pruned = np.multiply(x_2d, mask)
