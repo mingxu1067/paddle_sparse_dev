@@ -69,15 +69,20 @@ void CompressParameter(const platform::CUDAPlace &place, Tensor& param,
     PADDLE_ENFORCE_CUDA_SUCCESS(
         platform::dynload::cusparseLtSpMMACompress(
                                 &cusparselt_handle, &plan, x_data, x_data_compressed, stream));
-    PADDLE_ENFORCE_CUDA_SUCCESS(
-        cudaMemcpy(x_data, x_data_compressed, compressed_size, cudaMemcpyDeviceToDevice));
+    // PADDLE_ENFORCE_CUDA_SUCCESS(
+    //     cudaMemcpy(x_data, x_data_compressed, compressed_size, cudaMemcpyDeviceToDevice));
 
+    DDim dim_new(param.dims());
+    dim_new[dim_new.size()-1] = int(dim_new[dim_new.size()-1]/2.0);
 
+    auto& deleter = tmp_allocation_ptr.get_deleter();
+    auto* allocation_ptr = tmp_allocation_ptr.release();
+    auto shared_allocation = std::shared_ptr<memory::allocation::Allocation>(
+                            allocation_ptr, deleter);
 
-    // auto& deleter = tmp_allocation_ptr.get_deleter();
-    // auto* allocation_ptr = tmp_allocation_ptr.release();
-    // auto shared_allocation = std::shared_ptr<memory::allocation::Allocation>(
-    //                         allocation_ptr, deleter);
+    param.clear();
+    param.Resize(dim_new);
+    param.ResetHolder(std::move(shared_allocation));
 
     // Tensor temp_tensor(framework::proto::VarType::FP16);
     // temp_tensor.Resize(param.dims());

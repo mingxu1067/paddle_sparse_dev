@@ -23,6 +23,16 @@ class MulSparseOp : public framework::OperatorWithKernel {
     int x_num_col_dims = ctx->Attrs().Get<int>("x_num_col_dims");
     int y_num_col_dims = ctx->Attrs().Get<int>("y_num_col_dims");
 
+    bool switch_xy = ctx->Attrs().Get<bool>("switch_XY");
+    bool is_sparse_compressed = ctx->Attrs().Get<bool>("is_sparse_compressed");
+
+    if (is_sparse_compressed) {
+      if (switch_xy) {
+        y_dims[y_dims.size()-1] = y_dims[y_dims.size()-1]*2;
+      } else {
+        x_dims[x_dims.size()-1] = x_dims[x_dims.size()-1]*2;
+      }
+    }
 
     VLOG(3) << "mul operator x.shape=" << x_dims << " y.shape=" << y_dims
             << " x_num_col_dims=" << x_num_col_dims

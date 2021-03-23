@@ -167,6 +167,15 @@ class ASPHelper(object):
 
         cls.__compressed_cache[main_program] = True
 
+        block = main_program.global_block()
+        for op in block.global_block():
+            replacement_info = ASPHelper.DENSE_SPARSE_OP_MAP.get(op.type, None)
+            if (replacement_info is not None) and \
+               (replacement_info.source_param_input_name in op.input_names):
+               for var_name in op.input(replacement_info.source_param_input_name):
+                   if ASPHelper.is_supported_layer(var_name):
+                       op._set_attr("is_sparse_compressed", True)
+
     @classmethod
     def replace_dense_to_sparse_op(cls, main_program):
         is_compressed = main_program in cls.__compressed_cache
