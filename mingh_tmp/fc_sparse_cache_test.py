@@ -28,7 +28,7 @@ def main():
     exe.run(startup_prog)
 
     # print("-------------------- Sparsity Pruning --------------------")
-    ASPHelper.prune_model(train_program, startup_prog, place, with_mask=False)
+    ASPHelper.prune_model(train_program, startup_prog, place, with_mask=False, func_name="get_mask_2d_greedy")
 
     # SAVE_DIR="./fc_sparse_cache_model_10/"
     # fluid.io.save_params(exe, dirname=SAVE_DIR, main_program=train_program)

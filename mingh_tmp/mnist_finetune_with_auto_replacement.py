@@ -70,7 +70,7 @@ def main():
     print("Loaded model from", SAVE_DIR)
 
     print("-------------------- Sparsity Pruning --------------------")
-    ASPHelper.prune_model(train_prog, start_prog, place)
+    ASPHelper.prune_model(train_prog, start_prog, place, func_name="get_mask_2d_greedy")
     test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                      feeder, exe, [acc, avg_cost])
     print("Sparse Model: Loss {:.3f} - Accuracy: {:.3f}".format(
