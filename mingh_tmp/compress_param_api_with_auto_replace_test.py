@@ -35,7 +35,7 @@ def main():
     fc_result = exe.run(train_program, feed=feeder.feed([(data,)]), fetch_list=[fc])[0]
 
     sparsity.ASPHelper.compress_model(train_program, place)
-    sparsity.ASPHelper.replace_dense_to_sparse_op(train_program, is_compressed=True)
+    sparsity.ASPHelper.replace_dense_to_sparse_op(train_program)
 
     fc_sparse_compress_result = exe.run(train_program, feed=feeder.feed([(data,)]), fetch_list=[fc])[0]
 

@@ -72,6 +72,7 @@ class ASPHelper(object):
 
     __mask_vars = {}
     __masks = {}
+    __compressed_cache = {}
 
     @staticmethod
     def is_supported_layer(param_name):
@@ -152,6 +153,9 @@ class ASPHelper(object):
 
     @classmethod
     def compress_model(cls, main_program, place):
+        assert main_program in cls.__compressed_cache, \
+               'One program only need to compress model once. Called more than one would make errors'
+
         fake_batch_size = 128
         for param in main_program.global_block().all_parameters():
             if ASPHelper.is_supported_layer(param.name) and \
@@ -162,7 +166,9 @@ class ASPHelper(object):
                                         shape[1], shape[0], shape[1], True)
 
     @classmethod
-    def replace_dense_to_sparse_op(cls, main_program, is_compressed=False):
+    def replace_dense_to_sparse_op(cls, main_program):
+        is_compressed = main_program in cls.__compressed_cache
+
         block = main_program.global_block()
         for op in block.ops:
             replacement_info = ASPHelper.DENSE_SPARSE_OP_MAP.get(op.type, None)
