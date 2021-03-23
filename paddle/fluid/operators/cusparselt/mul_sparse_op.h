@@ -159,6 +159,9 @@ class MulSparseKernel : public framework::OpKernel<T> {
           platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, dA_compressed, y_data,
                                               &beta, output_data, output_data, d_workspace, streams,
                                               num_streams));
+
+      if (matrix_name.length() < 0)
+        PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
     }
 
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
