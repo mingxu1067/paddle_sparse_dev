@@ -114,7 +114,7 @@ class ASPHelper(object):
                     cls.__mask_vars[param_and_grad[0].name] = mask_param
 
     @classmethod
-    def prune_model(cls, main_program, start_program, place, func_name='get_mask_2d_greedy', with_mask=True):
+    def prune_model(cls, main_program, start_program, place, func_name='get_mask_1d_greedy', with_mask=True):
         checked_func_name = 'check_mask_1d' if '1d' in func_name else 'check_mask_2d'
 
         for param in main_program.global_block().all_parameters():
@@ -151,13 +151,14 @@ class ASPHelper(object):
                 )
 
     @classmethod
-    def compress_model(cls, main_program, batch_size, place):
+    def compress_model(cls, main_program, place):
+        fake_batch_size = 128
         for param in main_program.global_block().all_parameters():
             if ASPHelper.is_supported_layer(param.name) and \
                ASPHelper.MASKE_APPENDDED_NAME not in param.name:
                 shape = param.shape
                 param_tensor = global_scope().find_var(param.name).get_tensor()
-                core.compress_parameter(place, param_tensor, shape[1], batch_size, shape[0],
+                core.compress_parameter(place, param_tensor, shape[1], fake_batch_size, shape[0],
                                         shape[1], shape[0], shape[1], True)
 
     @classmethod
