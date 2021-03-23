@@ -153,7 +153,7 @@ class ASPHelper(object):
 
     @classmethod
     def compress_model(cls, main_program, place):
-        assert main_program in cls.__compressed_cache, \
+        assert not main_program in cls.__compressed_cache, \
                'One program only need to compress model once. Called more than one would make errors'
 
         fake_batch_size = 128
@@ -164,6 +164,8 @@ class ASPHelper(object):
                 param_tensor = global_scope().find_var(param.name).get_tensor()
                 core.compress_parameter(place, param_tensor, shape[1], fake_batch_size, shape[0],
                                         shape[1], shape[0], shape[1], True)
+
+        cls.__compressed_cache[main_program] = True
 
     @classmethod
     def replace_dense_to_sparse_op(cls, main_program):
