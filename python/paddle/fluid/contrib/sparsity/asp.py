@@ -70,6 +70,10 @@ class ASPHelper(object):
         'matmul':MulSparseOpRelacementInfo(source_type='matmul')
     }
 
+    SPARSE_OP_PARAM_INPUT_NAME_MAP = {
+        'mul_sparse':'Y'
+    }
+
     __mask_vars = {}
     __masks = {}
     __compressed_cache = {}
@@ -168,11 +172,10 @@ class ASPHelper(object):
         cls.__compressed_cache[main_program] = True
 
         block = main_program.global_block()
-        for op in block.global_block():
-            replacement_info = ASPHelper.DENSE_SPARSE_OP_MAP.get(op.type, None)
-            if (replacement_info is not None) and \
-               (replacement_info.source_param_input_name in op.input_names):
-               for var_name in op.input(replacement_info.source_param_input_name):
+        for op in block.ops:
+            param_input_name = ASPHelper.SPARSE_OP_PARAM_INPUT_NAME_MAP.get(op.type, None)
+            if param_input_name in op.input_names:
+               for var_name in op.input(param_input_name):
                    if ASPHelper.is_supported_layer(var_name):
                        op._set_attr("is_sparse_compressed", True)
 
