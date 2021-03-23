@@ -25,7 +25,7 @@ def main():
     fcw_param = fcw.get_tensor()
 
     fcw_array = np.array(fcw_param)
-    sparse_mask = sparsity.create_mask(fcw_array)
+    sparse_mask = sparsity.create_mask(fcw_array, func_name='get_mask_2d_greedy')
     pruned_w = np.multiply(fcw_array, sparse_mask)
     assert sparsity.check_mask_2d(pruned_w, m=4, n=2), "Pruning FC weight matrix failure!!!"
 
@@ -34,7 +34,7 @@ def main():
     data = np.random.randint(9, size=(32, 32))
     fc_result = exe.run(train_program, feed=feeder.feed([(data,)]), fetch_list=[fc])[0]
 
-    sparsity.ASPHelper.compress_model(train_program, 32, place)
+    sparsity.ASPHelper.compress_model(train_program, place)
     sparsity.ASPHelper.replace_dense_to_sparse_op(train_program, is_compressed=True)
 
     fc_sparse_compress_result = exe.run(train_program, feed=feeder.feed([(data,)]), fetch_list=[fc])[0]

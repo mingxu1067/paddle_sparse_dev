@@ -30,7 +30,7 @@ def main():
     fcsw_param = fcsw.get_tensor()
 
     fcw_array = np.array(fcw_param)
-    sparse_mask = sparsity.create_mask(fcw_array)
+    sparse_mask = sparsity.create_mask(fcw_array, func_name='get_mask_2d_greedy')
     pruned_w = np.multiply(fcw_array, sparse_mask)
     assert sparsity.check_mask_2d(pruned_w, m=4, n=2), "Pruning FC weight matrix failure!!!"
 

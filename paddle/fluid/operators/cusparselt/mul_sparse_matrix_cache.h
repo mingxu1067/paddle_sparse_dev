@@ -43,8 +43,8 @@ TMatrix* operators::SparseMatrixCache<TMatrix>::GetMatrix(
         it = hash_.find(matrix_name);
 
         if (it != hash_.end()) {
-        ret = it->second;
-        have_found = true;
+          ret = it->second;
+          have_found = true;
         }
     }
   }
