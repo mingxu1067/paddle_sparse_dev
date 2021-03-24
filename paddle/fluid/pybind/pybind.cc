@@ -65,7 +65,6 @@ limitations under the License. */
 #include "paddle/fluid/platform/monitor.h"
 #include "paddle/fluid/platform/place.h"
 #include "paddle/fluid/platform/profiler.h"
-#include "paddle/fluid/platform/cusparselt_helper.h"
 #include "paddle/fluid/pybind/box_helper_py.h"
 #include "paddle/fluid/pybind/compatible.h"
 #include "paddle/fluid/pybind/const_value.h"
@@ -98,6 +97,10 @@ limitations under the License. */
 #endif
 #include "paddle/fluid/platform/cuda_profiler.h"
 #include "paddle/fluid/platform/gpu_info.h"
+#endif
+
+#if defined(PADDLE_WITH_CUSPARSELT)
+#include "paddle/fluid/platform/cusparselt_helper.h"
 #endif
 
 #ifdef PADDLE_WITH_XPU
