@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from paddle.fluid import framework, global_scope, program_guard, layers
 from paddle.fluid.initializer import ConstantInitializer
@@ -77,14 +78,7 @@ class ASPHelper(object):
     __mask_vars = {}
     __masks = {}
     __compressed_cache = {}
-
-    @staticmethod
-    def is_supported_layer(param_name):
-        for name in ASPHelper.SUPPORTED_LAYERS:
-            if name in param_name and \
-               ASPHelper.SUPPORTED_LAYERS[name] in param_name:
-               return True
-        return False
+    __excluded_layers = []
 
     @staticmethod
     def get_mask_name(param_name):
@@ -97,6 +91,22 @@ class ASPHelper(object):
             if ASPHelper.MASKE_APPENDDED_NAME not in param.name:
                 var_list.append(param)
         return var_list
+
+    @classmethod
+    def set_excluded_layers(cls, layer_names):
+        cls.__excluded_layers = copy.deepcopy(layer_names)
+
+    @classmethod
+    def is_supported_layer(cls, param_name):
+        for layer in cls.__excluded_layers:
+            if layer in param_name:
+                return False
+
+        for name in ASPHelper.SUPPORTED_LAYERS:
+            if name in param_name and \
+               ASPHelper.SUPPORTED_LAYERS[name] in param_name:
+               return True
+        return False
 
     @classmethod
     def minimize(cls, loss, optimizer, place, main_program, start_program):
@@ -178,6 +188,7 @@ class ASPHelper(object):
                for var_name in op.input(param_input_name):
                    if ASPHelper.is_supported_layer(var_name):
                        op._set_attr("is_sparse_compressed", True)
+                       break
 
     @classmethod
     def replace_dense_to_sparse_op(cls, main_program):
