@@ -24,18 +24,15 @@ def main():
 
     exe.run(startup_prog)
 
+    sparsity.ASPHelper.prune_model(train_program, startup_prog, place, func_name="get_mask_1d_greedy", with_mask=False)
+
     fcw = fluid.global_scope().find_var('fc_0.w_0')
     fcsw = fluid.global_scope().find_var('fc_1.w_0')
     fcw_param = fcw.get_tensor()
     fcsw_param = fcsw.get_tensor()
 
     fcw_array = np.array(fcw_param)
-    sparse_mask = sparsity.create_mask(fcw_array, func_name='get_mask_2d_greedy')
-    pruned_w = np.multiply(fcw_array, sparse_mask)
-    assert sparsity.check_mask_2d(pruned_w, m=4, n=2), "Pruning FC weight matrix failure!!!"
-
-    fcw_param.set(pruned_w, place)
-    fcsw_param.set(pruned_w, place)
+    fcsw_param.set(fcw_array, place)
 
     fcb = fluid.global_scope().find_var('fc_0.b_0')
     fcsb = fluid.global_scope().find_var('fc_1.b_0')

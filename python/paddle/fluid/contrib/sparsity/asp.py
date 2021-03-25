@@ -139,16 +139,17 @@ class ASPHelper(object):
             if ASPHelper.is_supported_layer(param.name):
                 weight_param = global_scope().find_var(param.name).get_tensor()
                 weight_tensor = np.array(weight_param)
-                weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
+                weight_sparse_mask = sparsity.create_mask(weight_tensor.T, func_name=func_name).T
                 weight_pruned_tensor = np.multiply(weight_tensor, weight_sparse_mask)
                 weight_param.set(weight_pruned_tensor, place)
-                assert sparsity.check_sparsity(weight_pruned_tensor, m=4, n=2, func_name=checked_func_name), \
+                assert sparsity.check_sparsity(weight_pruned_tensor.T, m=4, n=2, func_name=checked_func_name), \
                         'Pruning {} weight matrix failure!!!'.format(param.name)
                 if with_mask:
-                    weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name)).get_tensor()
+                    weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name))
                     assert weight_mask_param is not None, \
                         'Cannot find {} parameter, please call ASPHelper.minimize' \
                         ' or ASPHelper.initialize_asp_training first!'.format(ASPHelper.get_mask_name(param.name))
+                    weight_mask_param = weight_mask_param.get_tensor()
                     weight_mask_param.set(weight_sparse_mask, place)
                 cls.__masks[param.name] = weight_sparse_mask
         return cls.__masks.copy()
