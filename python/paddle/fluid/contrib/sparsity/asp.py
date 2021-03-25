@@ -98,6 +98,9 @@ class ASPHelper(object):
 
     @classmethod
     def is_supported_layer(cls, param_name):
+        if ASPHelper.MASKE_APPENDDED_NAME in param_name:
+            return False
+
         for layer in cls.__excluded_layers:
             if layer in param_name:
                 return False
@@ -133,8 +136,7 @@ class ASPHelper(object):
         checked_func_name = 'check_mask_1d' if '1d' in func_name else 'check_mask_2d'
 
         for param in main_program.global_block().all_parameters():
-            if ASPHelper.is_supported_layer(param.name) and \
-               ASPHelper.MASKE_APPENDDED_NAME not in param.name:
+            if ASPHelper.is_supported_layer(param.name):
                 weight_param = global_scope().find_var(param.name).get_tensor()
                 weight_tensor = np.array(weight_param)
                 weight_sparse_mask = sparsity.create_mask(weight_tensor, func_name=func_name)
@@ -172,8 +174,7 @@ class ASPHelper(object):
 
         fake_batch_size = 128
         for param in main_program.global_block().all_parameters():
-            if ASPHelper.is_supported_layer(param.name) and \
-               ASPHelper.MASKE_APPENDDED_NAME not in param.name:
+            if ASPHelper.is_supported_layer(param.name):
                 shape = param.shape
                 param_tensor = global_scope().find_var(param.name).get_tensor()
                 core.compress_parameter(place, param_tensor, shape[1], fake_batch_size, shape[0],
