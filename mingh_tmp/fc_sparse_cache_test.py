@@ -51,13 +51,13 @@ def main():
         exe.run(
             train_program, feed=feeder.feed([(data,)]), fetch_list=[fc_sparse])
         fc_sparse_time = time.time()-fc_sparse_time
-        print(fc_time, fc_sparse_time)
+        print(fc_sparse_time)
 
     print("-------------------- Sparsity Checking --------------------")
-    for param in train_prog.global_block().all_parameters():
+    for param in train_program.global_block().all_parameters():
          if ASPHelper.is_supported_layer(param.name):
             mat = np.array(fluid.global_scope().find_var(param.name).get_tensor())
-            valid = check_mask_2d(mat, 4, 2)
+            valid = sparsity.check_mask_2d(mat, 4, 2)
             if valid:
                 print(param.name, "Sparsity Validation:", valid)
             else:

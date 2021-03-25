@@ -136,18 +136,18 @@ class MulSparseKernel : public framework::OpKernel<T> {
     bool is_sparse_compressed = context.Attr<bool>("is_sparse_compressed");
 
     std::string param_name = context.Attr<std::string>("param_name");
-    bool enable_cache = matrix_name.length() > 0? true : false;
+    bool enable_cache = param_name.length() > 0? true : false;
 
     if (is_sparse_compressed) {
-      x_compressed = x_data;
+      x_compressed = const_cast<T*>(x_data);
       // PADDLE_ENFORCE_CUDA_SUCCESS(
       //     platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, x_data, y_data,
       //                                         &beta, output_data, output_data, d_workspace, streams,
       //                                         num_streams));
     } else if (enable_cache) {
 
-      SparseMatrixCache<__half>& matrix_cache =
-            *(operators::CompressedMatrixCache::Instance().GetMap());
+      SparseMatrixCache<T>& matrix_cache =
+            *(operators::CompressedMatrixCache<T>::Instance().GetMap());
 
       x_compressed =  matrix_cache.GetMatrix(param_name, [&]() {
                               size_t compressed_size;

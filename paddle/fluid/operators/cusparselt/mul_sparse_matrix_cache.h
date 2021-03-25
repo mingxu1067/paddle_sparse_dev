@@ -57,6 +57,7 @@ TMatrix* operators::SparseMatrixCache<TMatrix>::GetMatrix(
   return ret;
 }
 
+template <typename TMatrix>
 class CompressedMatrixCache {
  public:
   static CompressedMatrixCache& Instance() {
@@ -64,7 +65,7 @@ class CompressedMatrixCache {
     return instance;
   }
 
-  SparseMatrixCache<__half>* GetMap() {
+  SparseMatrixCache<TMatrix>* GetMap() {
     return &cache_;
   }
 
@@ -72,7 +73,7 @@ class CompressedMatrixCache {
   CompressedMatrixCache() {}
   ~CompressedMatrixCache() {}
 
-  SparseMatrixCache<__half> cache_;
+  SparseMatrixCache<TMatrix> cache_;
 };
 
 }  // namespace operators
