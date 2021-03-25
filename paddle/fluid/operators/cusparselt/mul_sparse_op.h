@@ -131,21 +131,28 @@ class MulSparseKernel : public framework::OpKernel<T> {
     const T* y_data = y_matrix.data<T>();
     T* output_data = z->data<T>();
 
+    T* x_compressed;
+
     bool is_sparse_compressed = context.Attr<bool>("is_sparse_compressed");
+
+    std::string param_name = context.Attr<std::string>("param_name");
+    bool enable_cache = matrix_name.length() > 0? true : false;
+
     if (is_sparse_compressed) {
-      PADDLE_ENFORCE_CUDA_SUCCESS(
-          platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, x_data, y_data,
-                                              &beta, output_data, output_data, d_workspace, streams,
-                                              num_streams));
-    } else {
-      std::string param_name = context.Attr<std::string>("param_name");
+      x_compressed = x_data;
+      // PADDLE_ENFORCE_CUDA_SUCCESS(
+      //     platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, x_data, y_data,
+      //                                         &beta, output_data, output_data, d_workspace, streams,
+      //                                         num_streams));
+    } else if (enable_cache) {
+
       SparseMatrixCache<__half>& matrix_cache =
             *(operators::CompressedMatrixCache::Instance().GetMap());
 
-      __half *dA_compressed = matrix_cache.GetMatrix(param_name, [&]() {
+      x_compressed =  matrix_cache.GetMatrix(param_name, [&]() {
                               size_t compressed_size;
                               cudaStream_t stream = nullptr;
-                              __half *dA_compressed;
+                              T* dA_compressed;
                               PADDLE_ENFORCE_CUDA_SUCCESS(
                                   platform::dynload::cusparseLtSpMMACompressedSize(
                                                       &cusparselt_handle, &plan, &compressed_size));
@@ -155,15 +162,34 @@ class MulSparseKernel : public framework::OpKernel<T> {
                                                       &cusparselt_handle, &plan, x_data, dA_compressed, stream));
                               return dA_compressed;
                             });
-      PADDLE_ENFORCE_CUDA_SUCCESS(
-          platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, dA_compressed, y_data,
-                                              &beta, output_data, output_data, d_workspace, streams,
-                                              num_streams));
+      // PADDLE_ENFORCE_CUDA_SUCCESS(
+      //     platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, dA_compressed, y_data,
+      //                                         &beta, output_data, output_data, d_workspace, streams,
+      //                                         num_streams));
+    } else {
+      size_t compressed_size;
+      cudaStream_t stream = nullptr;
 
-      if (param_name.length() < 0)
-        PADDLE_ENFORCE_CUDA_SUCCESS( cudaFree(dA_compressed));
+      PADDLE_ENFORCE_CUDA_SUCCESS(
+          platform::dynload::cusparseLtSpMMACompressedSize(
+                              &cusparselt_handle, &plan, &compressed_size));
+
+      auto tmp_allocation_ptr = memory::Alloc(dev_ctx, compressed_size);
+      x_compressed = static_cast<T*>(tmp_allocation_ptr->ptr());
+
+      PADDLE_ENFORCE_CUDA_SUCCESS(
+          platform::dynload::cusparseLtSpMMACompress(
+                              &cusparselt_handle, &plan, x_data, x_compressed, stream));
+      // PADDLE_ENFORCE_CUDA_SUCCESS(
+      //     platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, dA_compressed, y_data,
+      //                                         &beta, output_data, output_data, d_workspace, streams,
+      //                                         num_streams));
     }
 
+    PADDLE_ENFORCE_CUDA_SUCCESS(
+      platform::dynload::cusparseLtMatmul(&cusparselt_handle, &plan, &alpha, x_compressed, y_data,
+                                          &beta, output_data, output_data, d_workspace, streams,
+                                          num_streams));
     PADDLE_ENFORCE_CUDA_SUCCESS( platform::dynload::cusparseLtMatmulPlanDestroy(&plan));
     // std::string param_name = context.Attr<std::string>("param_name");
     // SparseMatrixCache<__half>& matrix_cache =

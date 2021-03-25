@@ -37,16 +37,15 @@ TMatrix* operators::SparseMatrixCache<TMatrix>::GetMatrix(
   TMatrix* ret;
   auto it = hash_.end();
   bool have_found = false;
-  if (matrix_name.length() > 0) {
-    {
-        std::lock_guard<std::mutex> lock(cache_mutex);
-        it = hash_.find(matrix_name);
 
-        if (it != hash_.end()) {
-          ret = it->second;
-          have_found = true;
-        }
-    }
+  {
+      std::lock_guard<std::mutex> lock(cache_mutex);
+      it = hash_.find(matrix_name);
+
+      if (it != hash_.end()) {
+        ret = it->second;
+        have_found = true;
+      }
   }
 
   if (!have_found) {
