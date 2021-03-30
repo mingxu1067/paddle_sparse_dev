@@ -1,3 +1,20 @@
+# Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+Functions for Auto SParsity (ASP) training and inference.
+"""
+
 import copy
 import numpy as np
 from paddle.fluid import framework, global_scope, program_guard, layers
@@ -62,6 +79,8 @@ class MulSparseOpRelacementInfo(OpRelacementInfo):
 
 
 class ASPHelper(object):
+    """
+    """
 
     MASKE_APPENDDED_NAME = '_asp_mask'
     SUPPORTED_LAYERS = {'fc':'w_0', 'linear':'w_0', 'conv2d':'w_0'}
@@ -82,10 +101,26 @@ class ASPHelper(object):
 
     @staticmethod
     def get_mask_name(param_name):
+        """
+        Return mask name by given parameter name.
+
+        Args:
+            param_name (string): The name of parameter.
+        Returns:
+            string: The mask name of given parameter name.
+        """
         return param_name + ASPHelper.MASKE_APPENDDED_NAME
 
     @staticmethod
     def get_vars(main_program):
+        """
+        Get parameters in main_program excluded ASP masks.
+
+        Args:
+            main_program (Program): Program contains parameters.
+        Returns:
+            list: parameters of main_program.
+        """
         var_list = []
         for param in main_program.global_block().all_parameters():
             if ASPHelper.MASKE_APPENDDED_NAME not in param.name:
@@ -94,10 +129,24 @@ class ASPHelper(object):
 
     @classmethod
     def set_excluded_layers(cls, layer_names):
+        """
+        Set parameter name of layers which would not be pruned as sparse weights.
+
+        Args:
+            layer_names (list): A list contains names of parameters.
+        """
         cls.__excluded_layers = copy.deepcopy(layer_names)
 
     @classmethod
     def is_supported_layer(cls, param_name):
+        """
+        Verify if given paramter is supported by ASP.
+
+        Args:
+            param_name (string): The name of parameter.
+        Returns:
+            bool: True if it is supported, otherwise False.
+        """
         if ASPHelper.MASKE_APPENDDED_NAME in param_name:
             return False
 
@@ -113,13 +162,40 @@ class ASPHelper(object):
 
     @classmethod
     def minimize(cls, loss, optimizer, place, main_program, start_program):
+        """
+        A decorator of minimize functions of Optimizer.
+        This function would 
+        1. Create sparse masks corresponding to supported layers in main_program.
+        2. Insert masking op in the end of weights update.
+
+        Args:
+            loss (Variable): A Variable containing the value to minimize.
+            optimizer (Optimizer): A Optimizer used for training.
+            place (Place): Device place for mask Variables.
+            main_program (Program): :Program contains parameters.
+            startup_program (Program): :Program for initializing parameters.
+        Returns:
+            list: operators from optimizer.minimize(loss).
+            list: a list of pair of parameters and their gradients.
+        """
         optimizer_ops, params_and_grads = optimizer.minimize(loss)
         cls.create_mask_variables(main_program, start_program, params_and_grads)
-        cls.insert_sparse_mask_ops(main_program, start_program, optimizer.type, params_and_grads)
+        cls.insert_sparse_mask_ops(main_program, start_program, params_and_grads)
         return optimizer_ops, params_and_grads
 
     @classmethod
     def create_mask_variables(cls, main_program, start_program, params_and_grads):
+        """
+        Create sparse variable corresponding to supported paramters in main_program.
+
+        Args:
+            main_program (Program): :Program contains parameters.
+            startup_program (Program): :Program for initializing parameters.
+            params_and_grads (list): a list of pair of parameters and their gradients.
+        Returns:
+            list: operators from optimizer.minimize(loss).
+            list: a list of pair of parameters and their gradients.
+        """
         with program_guard(main_program, start_program):
             for param_and_grad in params_and_grads:
                 if ASPHelper.is_supported_layer(param_and_grad[0].name):
@@ -133,6 +209,19 @@ class ASPHelper(object):
 
     @classmethod
     def prune_model(cls, main_program, start_program, place, func_name='get_mask_1d_greedy', with_mask=True):
+        """
+        Pruning supported layers in main_program via specified mask generation function given by func_name.
+
+        Args:
+            main_program (Program): :Program contains parameters.
+            startup_program (Program): :Program for initializing parameters.
+            place (Place): Device place for mask Variables.
+            func_name (string, optional): The function name to generate spase mask.
+            with_mask (bool, optional): To prune mask of parameters or not.
+                                        Ture is purning masks also, False is only parameters.
+        Returns:
+            directory: a directory to map a parameter name to its mask Variable.
+        """
         checked_func_name = 'check_mask_1d' if '1d' in func_name else 'check_mask_2d'
 
         for param in main_program.global_block().all_parameters():
@@ -155,7 +244,15 @@ class ASPHelper(object):
         return cls.__masks.copy()
 
     @classmethod
-    def insert_sparse_mask_ops(cls, main_program, start_program, optimizer_type, param_grads):
+    def insert_sparse_mask_ops(cls, main_program, start_program, param_grads):
+        """
+        Insert sparse masking operators in the end of weights update.
+
+        Args:
+            main_program (Program): :Program contains parameters.
+            startup_program (Program): :Program for initializing parameters.
+            params_and_grads (list): a list of pair of parameters and their gradients.
+        """
         block = main_program.global_block()
         for param_grad in param_grads:
             if param_grad[0].name in cls.__mask_vars:
