@@ -46,7 +46,6 @@ def test(test_program, test_reader, test_feader, exe, fetch_list):
 def main():
     BATCH_SIZE = 128
     EPOCHS = 60
-    SAVE_DIR = "cifar10_cnn_asp_test"
 
     train_prog = fluid.Program()
     start_prog = fluid.Program()
@@ -92,6 +91,7 @@ def main():
         print("           :\tTesting Loss {:.3f} - Testing Acc {:.3f}".format(
                 test_avg_loss_val_mean, test_acc_val_mean))
 
+    # SAVE_DIR = "cifar10_cnn_asp_test"
     # print("-------------------- Saving model --------------------")
     # fluid.io.save_inference_model(SAVE_DIR,
     #                                 ['img'], [predict], exe,
@@ -127,7 +127,7 @@ def main():
     for param in train_prog.global_block().all_parameters():
          if ASPHelper.is_supported_layer(param.name):
             mat = np.array(fluid.global_scope().find_var(param.name).get_tensor())
-            valid = check_sparsity(mat, m=4, n=2)
+            valid = check_sparsity(mat.T, m=4, n=2)
             if valid:
                 print(param.name, "Sparsity Validation:", valid)
             else:
