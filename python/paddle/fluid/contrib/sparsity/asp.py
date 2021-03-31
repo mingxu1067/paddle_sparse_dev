@@ -311,7 +311,7 @@ class ASPHelper(object):
               exe = fluid.Executor(place)
               exe.run(start_program)
 
-              ASPHelper.prune_model(train_prog, start_prog, place, func_name="get_mask_2d_greedy")
+              ASPHelper.prune_model(main_program, start_program, place, func_name="get_mask_2d_greedy")
         """
         checked_func_name = 'check_mask_1d' if '1d' in func_name else 'check_mask_2d'
 
