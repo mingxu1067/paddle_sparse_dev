@@ -24,37 +24,49 @@ import numpy as np
 from itertools import permutations
 
 __all__ = [
-    'density', 'reshape_1d', 'check_mask_1d', 'get_mask_1d_greedy',
-    'get_mask_1d_best',
-    'check_mask_2d', 'get_mask_2d_greedy', 'get_mask_2d_best', 'create_mask',
-    'check_sparsity'
+    'density', 'check_mask_1d', 'get_mask_1d_greedy', 'get_mask_1d_best',
+    'check_mask_2d', 'get_mask_2d_greedy', 'get_mask_2d_best',
+    'create_mask', 'check_sparsity'
 ]
 
 
 def density(x):
-    """
-    Calculate density of input matrix.
+    r"""
+    Return the density of the input tensor.
 
     Args:
-        x (nparray): The input matrix.
+        x (nparray): The input tensor.
     Returns:
-        float: The density of x.
+        float: The density of :attr:`x`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          x = np.array([[0, 1, 3, 0],
+                        [1, 1, 0, 1]])
+          sparsity.density(x) # 0.625
     """
     x_flattened = x.flatten()
     return float(np.nonzero(x_flattened)[0].size) / x_flattened.size
 
 
 def reshape_1d(mat, m):
-    """
-    Reshape input matrix to shape (-1, m)
-    If the second dimension of mat is not a multiples of m,
+    r"""
+    Reshape the input matrix to shape (-1, m).
+    If the second dimension of :attr:`mat` is not a multiples of :attr:`m`, 
     then this function would pad the remainder with 0 before reshaping.
+
+    .. math::
+
+        remainder = mat.shape[1] % m
 
     Args:
         mat (nparray): The input matrix.
         m (int): The second dimension of reshaped matrix.
     Returns:
-        tuple: (The reshaped mat, The shape of padded mat).
+        tuple: A pair of the reshaped and padded matrix and the shape of padded matrix (non-reshaping).
     """
     remainder = mat.shape[1] % m
     if mat.shape[1] % m > 0:
@@ -67,16 +79,37 @@ def reshape_1d(mat, m):
 
 
 def check_mask_1d(mat, m, n):
-    """
-    Check if the input matrix is in 1D n:m sparse pattern.
-    1D n:m sparse pattern: There are must n zeros in every 1xm block.
+    r"""
+    Check if every row of the input matrix :attr:`mat` is in 1D `n:m` sparse pattern.
+    This function would pad the second dimension of :attr:`mat` by zero 
+    to be a multiples of :attr:`m` if necessary.
+
+    1D `n:m` sparse pattern: At least :attr:`n` zeros in every :math:`1 \times m` block.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        bool: True if mat in 1D n:m sparse pattern, otherwise False.
+        bool: True if every row of :attr:`mat` is in 1D n:m sparse pattern, else False.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          x = np.array([[0, 1, 3, 0],
+                        [1, 0, 0, 1]])
+          sparsity.check_mask_1d(x, 4, 2) # True
+
+          x = np.array([[0, 1, 5, 4],
+                        [1, 0, 0, 1]])
+          sparsity.check_mask_1d(x, 4, 2) # False
+
+          # x would be padded to shape (2, 8)
+          x = np.array([[0, 1, 0, 4, 6],
+                        [1, 0, 0, 1, 7]])
+          sparsity.check_mask_1d(x, 4, 2) # True
     """
     if len(mat.shape) <= 1:
         mat_flattern, shape = reshape_1d(mat.reshape(1, mat.shape[0]), m)
@@ -90,15 +123,32 @@ def check_mask_1d(mat, m, n):
 
 
 def get_mask_1d_greedy(mat, m, n):
-    """
-    Compute 1D n:m sparse pattern mask for the input matrix mat in greedy way.
+    r"""
+    Greedily generate 1D `n:m` sparse pattern mask of the input matrix :attr:`mat` 
+    in row-directory. This function would pad the second dimension of :attr:`mat` 
+    by zero to be a multiples of :attr:`m` before mask generation.
+
+    1D `n:m` sparse pattern: At least :attr:`n` zeros in every :math:`1 \times m` block.
+    Greedily generating: For each :math:`1 \times m` block, selecting values to keep in descent order.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        nparray: The 1D n:m sparse mask of mat.
+        nparray: The 1D `n:m` sparse mask of :attr:`mat`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          mat = np.array([[0, 1, 5, 4],
+                          [2, 7, 3, 6]])
+          mask = sparsity.get_mask_1d_greedy(mat, 4, 2)
+          # nparray([[0, 0, 1, 1],
+          #          [0, 1, 0, 1]])
+          sparsity.check_mask_1d(mask, 4, 2) # True
     """
     mat_flattern, shape = reshape_1d(mat, m)
 
@@ -115,14 +165,16 @@ def get_mask_1d_greedy(mat, m, n):
 
 valid_1d_patterns = {}
 def compute_valid_1d_patterns(m, n):
-    """
-    Compute all vaild 1D n:m sparse pattern.
+    r"""
+    Compute all vaild 1D `n:m` sparse patterns.
+
+    1D `n:m` sparse pattern: At least :attr:`n` zeros in every :math:`1 \times m` block.
 
     Args:
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        map: A map from m_n (string) to vaild 1D n:m sparse patterns.
+        dictionary: A dictionary with key: *m_n* (string) and value: all vaild 1D `n:m` sparse patterns.
     """
     global valid_1d_patterns
 
@@ -138,15 +190,34 @@ def compute_valid_1d_patterns(m, n):
 
 
 def get_mask_1d_best(mat, m, n):
-    """
-    Compute 1D n:m sparse pattern mask for the input matrix mat in best way.
+    r"""
+    Generate 1D `n:m` sparse pattern mask of the input matrix :attr:`mat` 
+    in row-directory to form sparse matrix with maximun L1 norm .This function 
+    would pad the second dimension of :attr:`mat` by zero to be a multiples of 
+    :attr:`m` before mask generation.
+
+    1D `n:m` sparse pattern: At least :attr:`n` zeros in every :math:`1 \times m` block.
+
+    *Note*: `get_mask_1d_best` is mathmatically equal to `get_mask_1d_greedy` in 1D mask generating.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        nparray: The 1D n:m sparse mask of mat.
+        nparray: The 1D `n:m` sparse mask of :attr:`mat`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          mat = np.array([[0, 1, 5, 4],
+                          [2, 7, 3, 6]])
+          mask = sparsity.get_mask_1d_greedy(mat, 4, 2)
+          # nparray([[0, 0, 1, 1],
+          #          [0, 1, 0, 1]])
+          sparsity.check_mask_1d(mask, 4, 2) # True
     """
     patterns = compute_valid_1d_patterns(m, n)
 
@@ -159,16 +230,21 @@ def get_mask_1d_best(mat, m, n):
 
 
 def reshape_2d(mat, m):
-    """
-    Reshape input matrix to shape (-1, m*m)
-    If the first and second dimension of mat is not a multiples of m,
-    then this function would pad the remainders with 0 before reshaping.
+    r"""
+    Reshape the input matrix to shape (-1, :math:`m \times m`).
+    In each dimension of :attr:`mat`, if it is not a multiples of :attr:`m`, 
+    then this function would pad the remainder with 0 before reshaping.
+
+    .. math::
+
+        remainder_0 = mat.shape[0] % m \\
+        remainder_1 = mat.shape[1] % m
 
     Args:
         mat (nparray): The input matrix.
-        m (int): The second dimension of reshaped matrix.
+        m (int): The square root of second dimension of reshaped matrix.
     Returns:
-        tuple: (The reshaped mat, The shape of padded mat).
+        tuple: A pair of the reshaped and padded matrix and the shape of padded matrix (non-reshaping).
     """
     remainder_0 = mat.shape[0] % m
     remainder_1 = mat.shape[1] % m
@@ -195,17 +271,45 @@ def reshape_2d(mat, m):
 
 
 def check_mask_2d(mat, m, n):
-    """
-    Check if the input matrix is in 2D n:m sparse pattern.
-    2D n:m sparse pattern: There are must n*n zeros in every mxm block,
-    under the constraint of selecting exactly n elements for each row and column.
+    r"""
+    Check if every :math:`m \times m` block of the input matrix :attr:`mat` is in 2D `n:m` sparse pattern.
+    This function would pad each dimension of :attr:`mat` by zero to be a multiples of 
+    :attr:`m` if necessary.
+
+    2D `n:m` sparse pattern: At least :math:`n \times n` zeros in every :math:`m \times m` block 
+    under the constraint of at least :attr:`n` zeros for each row and column.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        bool: True if mat in 2D n:m sparse pattern, otherwise False.
+        bool: True if  every :math:`m \times m` block of the input matrix :attr:`mat` is in 2D `n:m` sparse pattern, else False.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          x = np.array([[0, 8, 9, 0],
+                        [9, 0, 0, 10],
+                        [5, 0, 0, 6],
+                        [0, 4, 6, 0]])
+          sparsity.check_mask_2d(x, 4, 2) # True
+
+          x = np.array([[0, 8, 0, 9],
+                        [9, 0, 0, 10],
+                        [0, 5, 0, 6],
+                        [0, 4, 6, 0]])
+          sparsity.check_mask_2d(x, 4, 2) # False
+
+          # x would be padded to shape (8, 8)
+          x = np.array([[0, 8, 0, 9],
+                        [9, 0, 7, 0],
+                        [0, 5, 0, 6],
+                        [3, 0, 6, 0],
+                        [1, 1, 0, 1]])
+          sparsity.check_mask_2d(x, 4, 2) # True
     """
     mat_padded, shape = reshape_2d(mat, m)
     for sub_mat in mat_padded:
@@ -217,15 +321,36 @@ def check_mask_2d(mat, m, n):
 
 
 def get_mask_2d_greedy(mat, m, n):
-    """
-    Compute 2D n:m sparse pattern mask for the input matrix mat in greedy way.
+    r"""
+    Greedily generate 2D `n:m` sparse pattern mask of the input matrix :attr:`mat`. 
+    This function would pad each dimension of :attr:`mat` by zero to be a multiples of :attr:`m` before mask generation.
+
+    2D `n:m` sparse pattern: At least :math:`n \times n` zeros in every :math:`m \times m` block 
+    under the constraint of at least :attr:`n` zeros for each row and column.
+    Greedily generating: For each :math:`m \times m` block, selecting values to keep in descent order.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        nparray: The 2D n:m sparse mask of mat.
+        nparray: The 2D `n:m` sparse mask of :attr:`mat`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          mat = np.array([[9, 8, 3, 7],
+                          [9, 2, 1, 10],
+                          [5, 1, 3, 6],
+                          [2, 4, 6, 1]])
+          mask = sparsity.get_mask_2d_greedy(mat, 4, 2)
+          # nparray([[1. 1. 0. 0.]
+          #          [1. 0. 0. 1.]
+          #          [0. 0. 1. 1.]
+          #          [0. 1. 1. 0.]])
+          sparsity.check_mask_2d(mask, 4, 2) # True
     """
     mat_padded, shape = reshape_2d(mat, m)
     mask_padded = np.zeros_like(mat_padded).reshape(-1, m, m)
@@ -263,14 +388,17 @@ def get_mask_2d_greedy(mat, m, n):
 
 valid_2d_patterns = {}
 def compute_valid_2d_patterns(m, n):
-    """
-    Compute all vaild 2D n:m sparse pattern.
+    r"""
+    Compute all vaild 2D `n:m` sparse patterns.
+
+    2D `n:m` sparse pattern: At least :math:`n \times n` zeros in every :math:`m \times m` block 
+    under the constraint of at least :attr:`n` zeros for each row and column.
 
     Args:
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        map: A map from m_n (string) to vaild 2D n:m sparse patterns.
+        dictionary: A dictionary with key: *m_n* (string) and value: all vaild 2D `n:m` sparse patterns.
     """
     global valid_2d_patterns
 
@@ -292,15 +420,36 @@ def compute_valid_2d_patterns(m, n):
 
 
 def get_mask_2d_best(mat, m, n):
-    """
-    Compute 2D n:m sparse pattern mask for the input matrix mat in best way.
+    r"""
+    Generate 2D `n:m` sparse pattern mask of the input matrix :attr:`mat` 
+    to form sparse matrix with maximun L1 norm .This function would pad each 
+    dimension of :attr:`mat` by zero to be a multiples of :attr:`m` before mask generation.
+
+    2D `n:m` sparse pattern: At least :math:`n \times n` zeros in every :math:`m \times m` block 
+    under the constraint of at least :attr:`n` zeros for each row and column.
+
+    *Note*: L1 norm of sparse matrix from `Best` API is greater than or equal to the one from `Greedy`.
 
     Args:
         mat (nparray): The input matrix.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        m (int): m of `n:m` sparse pattern.
+        n (int): n of `n:m` sparse pattern.
     Returns:
-        nparray: The 2D n:m sparse mask of mat.
+        nparray: The 1D `n:m` sparse mask of :attr:`mat`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          mat = np.array([[2, 8, 9, 9],
+                          [9, 1, 3, 9],
+                          [5, 6, 3, 9],
+                          [2, 4, 6, 9]])
+          mask_greedy = sparsity.get_mask_2d_greedy(mat, 4, 2)
+          mask_greedy = sparsity.get_mask_2d_best(mat, 4, 2)
+          print("L1 norm of `greedy` sparse matrix", np.multiply(mat, mask_greedy).sum()) # 56
+          print("L1 norm of `best` sparse matrix", np.multiply(mat, mask_best).sum()) # 61
     """
     patterns = compute_valid_2d_patterns(m, n)
 
@@ -324,17 +473,37 @@ def get_mask_2d_best(mat, m, n):
 
 
 def create_mask(tensor, func_name="get_mask_1d_greedy", m=4, n=2):
-    """
-    Create n:m sparse pattern mask of input tensor via function given by func_name.
+    r"""
+    Create `n:m` sparse pattern mask of the input tensor via function given by :attr:`func_name`.
     Currently only support tensor with dimension less than or equal to 4.
 
     Args:
-        tensor (nparray): The input matrix.
-        func_name (string): The function name to generate spase mask.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        tensor (nparray): The input tensor.
+        func_name (string, optional): The function name to generate spase mask. Default is `get_mask_1d_greedy`.
+        m (int, optional): m of `n:m` sparse pattern. Default is 4.
+        n (int, optional): n of `n:m` sparse pattern. Default is 2.
     Returns:
-        nparray: The n:m sparse mask of mat generated by func_name.
+        nparray: The `n:m` sparse mask of :attr:`tensor` generated by :attr:`func_name`.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          tensor = np.array([[2, 8, 9, 9],
+                             [9, 1, 3, 9],
+                             [5, 6, 3, 9],
+                             [2, 4, 6, 9]])
+          mask_1d = sparsity.create_mask(tensor, func_name="get_mask_1d_greedy")
+          # nparray([[0 0 1 1],
+          #          [1 0 0 1],
+          #          [0 1 0 1],
+          #          [0 0 1 1]])
+          mask_2d = sparsity.create_mask(tensor, func_name="get_mask_2d_best")
+          # nparray([[0 1 1 0],
+          #          [1 0 0 1],
+          #          [1 1 0 0],
+          #          [0 0 1 1]])
     """
     shape = tensor.shape
     ttype = tensor.dtype
@@ -364,17 +533,34 @@ def create_mask(tensor, func_name="get_mask_1d_greedy", m=4, n=2):
 
 
 def check_sparsity(tensor, func_name="check_mask_1d", m=4, n=2):
-    """
-    Check if input tensor is in  n:m sparse pattern via function given by func_name.
+    r"""
+    Check if input tensor is in `n:m` sparse pattern via function given by :attr:`func_name`.
     Currently only support tensor with dimension less than or equal to 4.
 
     Args:
-        tensor (nparray): The input matrix.
-        func_name (string): The function name to check spase mask.
-        m (int): m of n:m sparse pattern.
-        n (int): n of n:m sparse pattern.
+        tensor (nparray): The input tensor.
+        func_name (string, optional): The function name to generate spase mask. Default is `check_mask_1d`.
+        m (int, optional): m of `n:m` sparse pattern. Default is 4.
+        n (int, optional): n of `n:m` sparse pattern. Default is 2.
     Returns:
-        bool: True if tensor pass checking via func_name, otherwise False.
+        bool: True if tensor pass checking of function given by :attr:`func_name`, else False.
+    Examples:
+        .. code-block:: python
+
+          import numpy as np
+          import paddle.fluid.sparsity as sparsity
+
+          tensor = np.array([[2, 8, 9, 9],
+                             [9, 1, 3, 9],
+                             [5, 6, 3, 9],
+                             [2, 4, 6, 9]])
+          mask_1d = sparsity.create_mask(tensor, func_name="get_mask_1d_greedy")
+          # nparray([[0 0 1 1],
+          #          [1 0 0 1],
+          #          [0 1 0 1],
+          #          [0 0 1 1]])
+          sparsity.check_sparsity(mask_1d, func_name='check_mask_1d') # True
+          sparsity.check_sparsity(mask_1d, func_name='check_mask_2d') # False
     """
     shape = tensor.shape
     t = tensor.astype(float)
