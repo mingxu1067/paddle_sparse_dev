@@ -79,7 +79,11 @@ class MulSparseOpRelacementInfo(OpRelacementInfo):
 
 
 class ASPHelper(object):
-    """
+    r"""
+    ASPHelper is a collection of Auto SParsity (ASP) functions to enable 
+
+    1. training models with weights in 2:4 sparse pattern from scratch.
+    2. pruning well-trained models into 2:4 sparse pattern for fine-tuning.
     """
 
     MASKE_APPENDDED_NAME = '_asp_mask'
@@ -101,25 +105,25 @@ class ASPHelper(object):
 
     @staticmethod
     def get_mask_name(param_name):
-        """
-        Return mask name by given parameter name.
+        r"""
+        Return mask name by given parameter name :attr:`param_name`.
 
         Args:
             param_name (string): The name of parameter.
         Returns:
-            string: The mask name of given parameter name.
+            string: The mask name of :attr:`param_name`.
         """
         return param_name + ASPHelper.MASKE_APPENDDED_NAME
 
     @staticmethod
     def get_vars(main_program):
-        """
-        Get parameters in main_program excluded ASP masks.
+        r"""
+        Get all parameters in :attr:`main_program` excluded ASP mask Variables.
 
         Args:
-            main_program (Program): Program contains parameters.
+            main_program (Program): Program with model definition and its parameters.
         Returns:
-            list: parameters of main_program.
+            list: A list of parameter Variables in :attr:`main_program` (excluded ASP mask Variables).
         """
         var_list = []
         for param in main_program.global_block().all_parameters():
@@ -128,24 +132,41 @@ class ASPHelper(object):
         return var_list
 
     @classmethod
-    def set_excluded_layers(cls, layer_names):
-        """
+    def set_excluded_layers(cls, param_names):
+        r"""
         Set parameter name of layers which would not be pruned as sparse weights.
 
         Args:
-            layer_names (list): A list contains names of parameters.
+            param_names (list): A list contains names of parameters.
         """
-        cls.__excluded_layers = copy.deepcopy(layer_names)
+        cls.__excluded_layers = copy.deepcopy(param_names)
 
     @classmethod
     def is_supported_layer(cls, param_name):
-        """
-        Verify if given paramter is supported by ASP.
+        r"""
+        Verify if given :attr:`param_name` is supported by ASP.
 
         Args:
             param_name (string): The name of parameter.
         Returns:
-            bool: True if it is supported, otherwise False.
+            bool: True if it is supported, else False.
+        Examples:
+            .. code-block:: python
+
+              import paddle.fluid as fluid
+              from paddle.fluid.contrib.sparsity import ASPHelper
+
+              main_program = fluid.Program()
+              startup_program = fluid.Program()
+
+              with fluid.program_guard(main_program, startup_program):
+                  input_data = fluid.layers.data(name='data', shape=[None, 128])
+                  fc = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
+
+              for param in main_program.global_block().all_parameters():
+                  ASPHelper.is_supported_layer(param.name)
+              # fc_0.w_0 -> True
+              # fc_0.b_0 -> False
         """
         if ASPHelper.MASKE_APPENDDED_NAME in param_name:
             return False
@@ -161,22 +182,41 @@ class ASPHelper(object):
         return False
 
     @classmethod
-    def minimize(cls, loss, optimizer, place, main_program, start_program):
-        """
-        A decorator of minimize functions of Optimizer.
-        This function would 
-        1. Create sparse masks corresponding to supported layers in main_program.
-        2. Insert masking op in the end of weights update.
+    def minimize(cls, loss, optimizer, main_program, start_program):
+        r"""
+        This function is a decorator of `minimize` function in `Optimizer`.
+        There are three steps:
+
+        1. Call :attr:`optimizer`.minimize(:attr:`loss`)
+        2. Create sparse mask Tensors according to supported layers in :attr:`main_program`.
+        3. Insert masking ops in the end of parameters update.
 
         Args:
             loss (Variable): A Variable containing the value to minimize.
             optimizer (Optimizer): A Optimizer used for training.
-            place (Place): Device place for mask Variables.
-            main_program (Program): :Program contains parameters.
-            startup_program (Program): :Program for initializing parameters.
+            main_program (Program): Program with model definition and its parameters.
+            start_program (Program): Program for initializing parameters.
         Returns:
-            list: operators from optimizer.minimize(loss).
-            list: a list of pair of parameters and their gradients.
+            list: operators from :attr:`optimizer`.minimize(:attr:`loss`).
+            list: pairs of parameters and their gradients.
+        Examples:
+            .. code-block:: python
+
+              import paddle.fluid as fluid
+              from paddle.fluid.contrib.sparsity import ASPHelper
+
+              main_program = fluid.Program()
+              start_program = fluid.Program()
+
+              with fluid.program_guard(main_program, start_program):
+                    input_data = fluid.layers.data(name='data', shape=[None, 128])
+                    label = fluid.layers.data(name='label', shape=[None, 10])
+                    hidden = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
+                    prob = fluid.layers.fc(input=hidden, num_flatten_dims=-1, size=10, act=None)
+                    loss = fluid.layers.mean(fluid.layers.square_error_cost(prob, label))
+
+                    optimizer = fluid.optimizer.SGD(learning_rate=0.1)
+                    ASPHelper.minimize(loss, optimizer, main_program, start_program)
         """
         optimizer_ops, params_and_grads = optimizer.minimize(loss)
         cls.create_mask_variables(main_program, start_program, params_and_grads)
@@ -185,16 +225,36 @@ class ASPHelper(object):
 
     @classmethod
     def create_mask_variables(cls, main_program, start_program, params_and_grads):
-        """
-        Create sparse variable corresponding to supported paramters in main_program.
+        r"""
+        Create sparse mask Tensors according to supported layers in :attr:`main_program`.
+        This function is called in second step of `ASPHelper.minimize`
 
         Args:
-            main_program (Program): :Program contains parameters.
-            startup_program (Program): :Program for initializing parameters.
-            params_and_grads (list): a list of pair of parameters and their gradients.
-        Returns:
-            list: operators from optimizer.minimize(loss).
-            list: a list of pair of parameters and their gradients.
+            main_program (Program): Program with model definition and its parameters.
+            start_program (Program): Program for initializing parameters.
+            params_and_grads (list): Variable pairs of parameters and their gradients.
+        Examples:
+            .. code-block:: python
+
+              import paddle.fluid as fluid
+              from paddle.fluid.contrib.sparsity import ASPHelper
+
+              main_program = fluid.Program()
+              start_program = fluid.Program()
+
+              with fluid.program_guard(main_program, start_program):
+                    input_data = fluid.layers.data(name='data', shape=[None, 128])
+                    label = fluid.layers.data(name='label', shape=[None, 10])
+                    hidden = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
+                    prob = fluid.layers.fc(input=hidden, num_flatten_dims=-1, size=10, act=None)
+                    loss = fluid.layers.mean(fluid.layers.square_error_cost(prob, label))
+
+                    optimizer = fluid.optimizer.SGD(learning_rate=0.1)
+
+                    # Equal to ASPHelper.minimize(loss, optimizer, main_program, start_program)
+                    optimizer_ops, params_and_grads = optimizer.minimize(loss)
+                    ASPHelper.create_mask_variables(main_program, start_program, params_and_grads)
+                    ASPHelper.insert_sparse_mask_ops(main_program, start_program, params_and_grads)
         """
         with program_guard(main_program, start_program):
             for param_and_grad in params_and_grads:
@@ -209,18 +269,49 @@ class ASPHelper(object):
 
     @classmethod
     def prune_model(cls, main_program, start_program, place, func_name='get_mask_1d_greedy', with_mask=True):
-        """
-        Pruning supported layers in main_program via specified mask generation function given by func_name.
+        r"""
+        Pruning parameters of supported layers in :attr:`main_program` via 
+        specified mask generation function given by :attr:`func_name`. This 
+        function supports both training and inference controlled by :attr:`with_mask`.
+        If :attr:`with_mask` is True, it would also prune parameter related ASP mask Variables,
+        else only prunes parameters.
+
+        *Note*: If calling this function with :attr:`with_mask`, it should call `ASPHelper.minimize` 
+        and initialization (`exe.run(startup_program`)) before.
 
         Args:
-            main_program (Program): :Program contains parameters.
-            startup_program (Program): :Program for initializing parameters.
-            place (Place): Device place for mask Variables.
-            func_name (string, optional): The function name to generate spase mask.
-            with_mask (bool, optional): To prune mask of parameters or not.
-                                        Ture is purning masks also, False is only parameters.
+            main_program (Program): Program with model definition and its parameters.
+            start_program (Program): Program for initializing parameters.
+            place (fluid.CPUPlace()|fluid.CUDAPlace(N)): Device place for pruned parameter and mask Variables.
+            func_name (string, optional): The name of function to generate spase masks. Defalut is `get_mask_1d_greedy`.
+            with_mask (bool, optional): To prune mask Variables related to parameters or not. Ture is purning also, False is not. Defalut is True.
         Returns:
-            directory: a directory to map a parameter name to its mask Variable.
+            dictionary: A dictionary with key: `parameter name` (string) and value: its corresponding mask Variable.
+        Examples:
+            .. code-block:: python
+
+              import paddle.fluid as fluid
+              from paddle.fluid.contrib.sparsity import ASPHelper
+
+              main_program = fluid.Program()
+              start_program = fluid.Program()
+
+              place = fluid.CUDAPlace(0)
+
+              with fluid.program_guard(main_program, start_program):
+                    input_data = fluid.layers.data(name='data', shape=[None, 128])
+                    label = fluid.layers.data(name='label', shape=[None, 10])
+                    hidden = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
+                    prob = fluid.layers.fc(input=hidden, num_flatten_dims=-1, size=10, act=None)
+                    loss = fluid.layers.mean(fluid.layers.square_error_cost(prob, label))
+
+                    optimizer = fluid.optimizer.SGD(learning_rate=0.1)
+                    ASPHelper.minimize(loss, optimizer, main_program, start_program)
+
+              exe = fluid.Executor(place)
+              exe.run(start_program)
+
+              ASPHelper.prune_model(train_prog, start_prog, place, func_name="get_mask_2d_greedy")
         """
         checked_func_name = 'check_mask_1d' if '1d' in func_name else 'check_mask_2d'
 
@@ -236,8 +327,8 @@ class ASPHelper(object):
                 if with_mask:
                     weight_mask_param = global_scope().find_var(ASPHelper.get_mask_name(param.name))
                     assert weight_mask_param is not None, \
-                        'Cannot find {} parameter, please call ASPHelper.minimize' \
-                        ' or ASPHelper.initialize_asp_training first!'.format(ASPHelper.get_mask_name(param.name))
+                        'Cannot find {} variable, please call ASPHelper.minimize' \
+                        'initialization (exe.run(startup_program)) first!'.format(ASPHelper.get_mask_name(param.name))
                     weight_mask_param = weight_mask_param.get_tensor()
                     weight_mask_param.set(weight_sparse_mask, place)
                 cls.__masks[param.name] = weight_sparse_mask
@@ -245,13 +336,36 @@ class ASPHelper(object):
 
     @classmethod
     def insert_sparse_mask_ops(cls, main_program, start_program, param_grads):
-        """
-        Insert sparse masking operators in the end of weights update.
+        r"""
+        Insert masking ops in the end of parameters update.
+        This function is called in third step of `ASPHelper.minimize`
 
         Args:
-            main_program (Program): :Program contains parameters.
-            startup_program (Program): :Program for initializing parameters.
-            params_and_grads (list): a list of pair of parameters and their gradients.
+            main_program (Program): Program with model definition and its parameters.
+            start_program (Program): Program for initializing parameters.
+            params_and_grads (list): Variable pairs of parameters and their gradients.
+        Examples:
+            .. code-block:: python
+
+              import paddle.fluid as fluid
+              from paddle.fluid.contrib.sparsity import ASPHelper
+
+              main_program = fluid.Program()
+              start_program = fluid.Program()
+
+              with fluid.program_guard(main_program, start_program):
+                    input_data = fluid.layers.data(name='data', shape=[None, 128])
+                    label = fluid.layers.data(name='label', shape=[None, 10])
+                    hidden = fluid.layers.fc(input=input_data, num_flatten_dims=-1, size=32, act=None)
+                    prob = fluid.layers.fc(input=hidden, num_flatten_dims=-1, size=10, act=None)
+                    loss = fluid.layers.mean(fluid.layers.square_error_cost(prob, label))
+
+                    optimizer = fluid.optimizer.SGD(learning_rate=0.1)
+
+                    # Equal to ASPHelper.minimize(loss, optimizer, main_program, start_program)
+                    optimizer_ops, params_and_grads = optimizer.minimize(loss)
+                    ASPHelper.create_mask_variables(main_program, start_program, params_and_grads)
+                    ASPHelper.insert_sparse_mask_ops(main_program, start_program, params_and_grads)
         """
         block = main_program.global_block()
         for param_grad in param_grads:
