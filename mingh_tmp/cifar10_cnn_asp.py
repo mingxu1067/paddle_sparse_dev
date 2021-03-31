@@ -64,7 +64,7 @@ def main():
 
     with fluid.program_guard(train_prog, start_prog):
         optimizer = fluid.optimizer.Adam(learning_rate=0.001)
-        ASPHelper.minimize(avg_cost, optimizer, place, train_prog, start_prog)
+        ASPHelper.minimize(avg_cost, optimizer, train_prog, start_prog)
         # optimizer.minimize(avg_cost)
 
     train_reader = paddle.batch(paddle.reader.shuffle(
