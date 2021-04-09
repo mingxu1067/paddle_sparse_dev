@@ -1,5 +1,6 @@
-import paddle
+import paddle, os
 import paddle.fluid as fluid
+import paddle.distributed.fleet as fleet
 from paddle.fluid.contrib.sparsity import ASPHelper, check_sparsity
 import numpy as np
 
@@ -25,6 +26,10 @@ def test(test_program, test_reader, test_feader, exe, fetch_list):
     return np.array(test_acc_set).mean(), np.array(test_avg_loss_set).mean()
 
 def main():
+
+    place = paddle.CUDAPlace(int(os.environ.get('FLAGS_selected_gpus', 0)))
+    fleet.init(is_collective=True)
+
     BATCH_SIZE = 64
     EPOCHS = 5
     SAVE_DIR = "mnist_asp_test"
@@ -32,7 +37,6 @@ def main():
     train_prog = fluid.Program()
     start_prog = fluid.Program()
 
-    place = fluid.CUDAPlace(0)
     exe = fluid.Executor(place)
 
     with fluid.program_guard(train_prog, start_prog):
@@ -47,7 +51,8 @@ def main():
         optimizer = fluid.optimizer.SGD(learning_rate=0.001)
         optimizer = fluid.contrib.mixed_precision.decorator.decorate(optimizer)
         optimizer = ASPHelper.decorate(optimizer)
-        # ASPHelper.minimize(avg_cost, optimizer)
+        strategy = fleet.DistributedStrategy()
+        optimizer = fleet.distributed_optimizer(optimizer, strategy=strategy)
         optimizer.minimize(avg_cost)
 
     train_reader = paddle.batch(paddle.reader.shuffle(
@@ -74,18 +79,8 @@ def main():
         test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                          feeder, exe, [acc, avg_cost])
 
-        print("Epoch {:3d}:\tTraining Loss {:.3f} - Traing Acc {:.3f}".format(
-                epoch_id, metrics[0].mean(), metrics[1].mean()))
-        print("           :\tTesting Loss {:.3f} - Testing Acc {:.3f}".format(
-                test_avg_loss_val_mean, test_acc_val_mean))
-
-    print("-------------------- Saving model --------------------")
-    fluid.io.save_inference_model(SAVE_DIR,
-                                    ['img'], [predict], exe,
-                                    train_prog,
-                                    model_filename=None,
-                                    params_filename=None)
-    print("Saved model to", SAVE_DIR)
+        print(" Epoch {:3d}:\tTesting Loss {:.3f} - Testing Acc {:.3f}".format(
+                epoch_id, test_avg_loss_val_mean, test_acc_val_mean))
 
     print("-------------------- Sparsity Pruning --------------------")
     ASPHelper.prune_model(place, train_prog)
@@ -109,17 +104,16 @@ def main():
         test_acc_val_mean, test_avg_loss_val_mean = test(test_program, test_reader, 
                                                          feeder, exe, [acc, avg_cost])
 
-        print("Epoch {:3d}:\tTraining Loss {:.3f} - Traing Acc {:.3f}".format(
-                epoch_id, metrics[0].mean(), metrics[1].mean()))
-        print("            \tTesting Loss {:.3f} - Testing Acc {:.3f}".format(
-                test_avg_loss_val_mean, test_acc_val_mean))
+        print(" Epoch {:3d}:\tTesting Loss {:.3f} - Testing Acc {:.3f}".format(
+                epoch_id, test_avg_loss_val_mean, test_acc_val_mean))
 
     print("-------------------- Sparsity Checking --------------------")
     for param in train_prog.global_block().all_parameters():
          if ASPHelper.is_supported_layer(param.name):
             mat = np.array(fluid.global_scope().find_var(param.name).get_tensor())
-            assert check_sparsity(mat.T, m=4, n=2), "{} failed on sparsity validation".format(param.name)
-    print("PASSED")
+            print(param.name, mat)
+            assert check_sparsity(mat.T, m=4, n=2), \
+                   "{} failed on sparsity checking".format(param.name)
 
 if __name__ == "__main__":
     paddle.enable_static()
